@@ -110,6 +110,12 @@ export function createWindFx(scene, options = {}) {
     fillCloud(cloud, r);
   }
 
+  // A sprite's tint: from the base colour at the cloud's foot to the top's.
+  function shade(sp) {
+    const t = sp.height;
+    sp.meshInstance.setParameter('material_emissive', [0, 1, 2].map((k) => o.baseColor[k] + (o.topColor[k] - o.baseColor[k]) * t));
+  }
+
   function fillCloud(cloud, r) {
     cloud.radius = r;
     cloud.age = 0;
@@ -119,9 +125,8 @@ export function createWindFx(scene, options = {}) {
       const rr = Math.sqrt(Math.random()) * r;
       sp.offset.set(Math.cos(a) * rr, Math.pow(Math.random(), 0.7) * r * 0.55, Math.sin(a) * rr * 0.8);
       sp.size = r * rand([0.75, 1.35]) * (1 - (sp.offset.y / r) * 0.4);
-      const t = Math.min(sp.offset.y / (r * 0.55), 1);
-      const shade = [0, 1, 2].map((k) => o.baseColor[k] + (o.topColor[k] - o.baseColor[k]) * t);
-      sp.meshInstance.setParameter('material_emissive', shade);
+      sp.height = Math.min(sp.offset.y / (r * 0.55), 1);
+      shade(sp);
       sp.entity.setPosition(tmp.copy(cloud.center).add(sp.offset));
       sp.entity.setLocalScale(sp.size, sp.size, 1);
     }
@@ -141,7 +146,7 @@ export function createWindFx(scene, options = {}) {
     for (const cloud of clouds) {
       // Recycle a cloud once the camera is past it, out to the front of the stream.
       tmp.copy(cloud.center).sub(camPos);
-      if (tmp.dot(camFwd) < -cloud.radius - 6) {
+      if (!cloud.anchored && tmp.dot(camFwd) < -cloud.radius - 6) {
         cursor = Math.max(cursor, along + o.cloudAhead * 0.8);
         placeCloud(cloud, s, cursor);
         cursor += nextSpacing();
@@ -150,10 +155,19 @@ export function createWindFx(scene, options = {}) {
       const dist = tmp.copy(cloud.center).sub(camPos).length();
       const fade = smooth(o.cloudAhead + 20, o.cloudAhead - 20, dist) * smooth(0, 1.5, cloud.age);
       for (const sp of cloud.sprites) {
+        if (cloud.anchored) {
+          // Slow local movement keeps a fixed cliff shroud alive without
+          // letting the bank drift away from its formation.
+          sp.entity.setPosition(
+            cloud.center.x + sp.offset.x + Math.sin(cloud.age * 0.12 + sp.offset.y) * 0.7,
+            cloud.center.y + sp.offset.y + Math.sin(cloud.age * 0.09 + sp.offset.x) * 0.3,
+            cloud.center.z + sp.offset.z,
+          );
+        }
         const d = tmp.copy(sp.entity.getPosition()).sub(camPos).length();
         // Thin out the sprites right at the lens so passing close reads as
         // flying through wisps, not a card hitting the camera.
-        setOpacity(sp, o.cloudOpacity * visibility * fade * smooth(0.8, 4, d));
+        setOpacity(sp, o.cloudOpacity * (cloud.opacity ?? 1) * visibility * fade * smooth(0.8, 4, d));
         sp.entity.lookAt(camPos, Vec3.UP);
       }
     }
@@ -201,7 +215,7 @@ export function createWindFx(scene, options = {}) {
       setOpacity(st, alpha * smooth(0, 0.3, st.age) * smooth(1.5, 5, d));
       // Long axis along her velocity, broad side to the camera.
       st.entity.lookAt(camPos, dir);
-      st.entity.setLocalScale(st.width, st.size * (0.6 + rush), 1);
+      st.entity.setLocalScale(st.width, st.size * (0.6 + rush) * (1 + s.pocket * 0.65), 1);
     }
   }
 
@@ -227,6 +241,12 @@ export function createWindFx(scene, options = {}) {
     set visibility(v) {
       visibility = v;
     },
+    // Recolours the clouds, foot (`base`) to top, as [r, g, b] each.
+    setColors(base, top) {
+      o.baseColor = base;
+      o.topColor = top;
+      for (const cloud of clouds) for (const sp of cloud.sprites) if (sp.height !== undefined) shade(sp);
+    },
 
     // Scatter everything around her at once, e.g. when the flight starts.
     // `clearAhead` is where along her line the first cloud goes; a positive
@@ -235,8 +255,21 @@ export function createWindFx(scene, options = {}) {
       const s = flight.state;
       dir.copy(s.vel).normalize();
       camPos.copy(camera.getPosition());
+      clouds.forEach(cloud => { cloud.anchored = false; cloud.opacity = 1; });
       seedClouds(s, clearAhead);
       streaks.forEach((st) => respawnStreak(st, s, true));
+    },
+
+    // Optional persistent scenery shroud. Uses the exact in-game puff texture,
+    // billow placement, colouring and lens fade; normal flight is unchanged.
+    anchorCloud(index, center, radius, { opacity = 1 } = {}) {
+      const cloud = clouds[index];
+      if (!cloud) throw new RangeError(`No cloud bank at index ${index}`);
+      cloud.center.copy(center);
+      cloud.anchored = true;
+      cloud.opacity = opacity;
+      fillCloud(cloud, radius);
+      cloud.age = 10;
     },
 
     // Three of the clouds become one dense bank centred on her line, `ahead`

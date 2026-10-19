@@ -19,6 +19,11 @@ export const AMBIENCE_DEFAULTS = {
   fireflies: 44,
   fireflySizeM: [0.05, 0.1],
   fireflyWander: 0.6, // metres round each one's home
+  // Fireflies fade out toward the lens: gone where half the frame's height
+  // is under this many metres, fully there where it is twice that. On a long
+  // lens that is well out, so a near one's wander doesn't dart across the
+  // frame.
+  fireflyNearM: 0.25,
   lampSizeM: 0.12,
   motes: 70,
   moteSizeM: [0.006, 0.016],
@@ -48,6 +53,7 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
   const camFwd = new Vec3();
   const camRight = new Vec3();
   const camUp = new Vec3();
+  let nearDepth = 1; // where the fireflies have faded in by, for the lens
   const wind = new Vec3(0, 0, 1); // direction, set per frame
   let time = 0;
   let enabled = true;
@@ -119,7 +125,7 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
       s.brightness = b;
       const size = s.size * (0.7 + 0.6 * pulse);
       s.entity.setLocalScale(size, size, 1);
-      setOpacity(s, b * smooth(0.4, 1.2, viewDepth(s.pos)));
+      setOpacity(s, b * smooth(nearDepth / 2, nearDepth, viewDepth(s.pos)));
       setTint(s, [1, 0.86 + 0.1 * pulse, 0.36 + 0.2 * pulse]);
     }
   }
@@ -272,6 +278,7 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
       camFwd.copy(camera.forward);
       camRight.copy(camera.right);
       camUp.copy(camera.up);
+      nearDepth = (2 * o.fireflyNearM) / Math.tan((camera.camera.fov * Math.PI) / 360);
       if (windDir) wind.copy(windDir).normalize();
       updateFireflies(dt, night, gust);
       updateMotes(dt, light, gust);

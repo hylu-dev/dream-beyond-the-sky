@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#252e3c" />
+  <title>Cliff study — flight preview</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #65748a; color: #fff8eb; font-family: system-ui, sans-serif; }
+    #canvas { width: 100%; height: 100%; display: block; }
+    header { position: fixed; top: 32px; left: 36px; pointer-events: none; text-shadow: 0 2px 20px #293344; }
+    .eyebrow { font-size: 10px; letter-spacing: .24em; text-transform: uppercase; opacity: .8; }
+    h1 { font-family: Georgia, serif; font-weight: normal; font-size: 38px; margin: 9px 0 7px; }
+    header p { font-size: 12px; margin: 0; opacity: .85; }
+    .review { position: fixed; right: 32px; top: 32px; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; border: 1px solid #fff4d84d; border-radius: 30px; padding: 10px 15px; background: #25304444; }
+    #controls { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 18px; border: 1px solid #fff6dc30; background: #243042c9; backdrop-filter: blur(18px); box-shadow: 0 12px 45px #0b15292e; max-width: calc(100% - 28px); flex-wrap: wrap; justify-content: center; }
+    .group { display: flex; gap: 4px; }
+    .divider { width: 1px; height: 24px; background: #fff3dc30; }
+    button { font: inherit; font-size: 12px; white-space: nowrap; color: #faf1df; background: transparent; border: 1px solid transparent; border-radius: 9px; padding: 10px 12px; cursor: pointer; }
+    button:hover { background: #fff5d914; }
+    button[aria-pressed="true"] { background: #ede1c9; color: #283243; }
+    button:focus-visible, input:focus-visible { outline: 2px solid #f3d8a9; outline-offset: 3px; }
+    label { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+    input[type="range"] { accent-color: #e1cda8; width: 75px; }
+    #loading { position: fixed; inset: 0; display: grid; place-content: center; background: #5a6a7e; text-align: center; gap: 12px; }
+    #loading strong { font: normal 30px Georgia, serif; }
+    #loading span { font-size: 12px; opacity: .8; }
+    #loading[hidden] { display: none; }
+    #pass { position: fixed; bottom: 108px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; text-shadow: 0 1px 10px #263044; opacity: .8; }
+    @media (max-width: 700px) { header { top: 20px; left: 20px; } h1 { font-size: 29px; } .review { display: none; } #controls { width: calc(100% - 28px); gap: 5px; bottom: 14px; } button { padding: 9px; font-size: 11px; } .divider { display: none; } #pass { bottom: 160px; } }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" aria-label="Painted cliffs surrounded by the game's live clouds"></canvas>
+  <header><div class="eyebrow">Floating realm / foreground study</div><h1 id="title">Sanctuary</h1><p>Weathered limestone, old pines and hanging gardens.</p></header>
+  <div class="review">Asset review · not yet in game</div>
+  <div id="pass">Approaching the cliff</div>
+  <nav id="controls" aria-label="Cliff preview controls">
+    <div class="group" aria-label="Formation">
+      <button data-variant="0" aria-pressed="true">Sanctuary</button>
+      <button data-variant="1" aria-pressed="false">Garden ledge</button>
+      <button data-variant="2" aria-pressed="false">Watchtower</button>
+    </div>
+    <span class="divider"></span>
+    <div class="group"><button id="fly" aria-pressed="false">Fly-by</button><button id="inspect" aria-pressed="true">Inspect</button></div>
+    <button id="pause" aria-pressed="false">Pause</button>
+    <button id="clouds" aria-pressed="true">Cloud shroud</button>
+    <label>Cover <input id="cover" aria-label="Cloud coverage" type="range" min="50" max="100" value="90" /></label>
+    <button id="restart">Restart</button>
+  </nav>
+  <div id="loading" role="status"><strong>Entering the clouds</strong><span>Loading the cliff study…</span></div>
+  <script type="module" src="/src/cliffDemo.js"></script>
+</body>
+</html>

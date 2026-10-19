@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Splat Scene Demo</title>
+    <title>Waking Above the Clouds</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700;800&family=Yuji+Syuku&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Noto+Serif+SC:wght@500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700;800&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Noto+Serif+SC:wght@300;400;500;600&display=swap"
       rel="stylesheet"
     />
     <style>
@@ -18,18 +18,100 @@
         --gold-dim: rgba(201, 164, 92, 0.45);
       }
       html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+      /* Held touches steer, so they mustn't select text or call up menus. */
+      body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; }
       #canvas { display: block; width: 100%; height: 100%; touch-action: none; }
       #fade {
         position: fixed; inset: 0; background: #fff; opacity: 0;
         pointer-events: none;
       }
+      /* Black over the scene while it loads - so nothing shows before she is
+         placed and posed - lifted once the first shot is set up. */
+      #curtain {
+        position: fixed; inset: 0; z-index: 3; background: #000;
+        pointer-events: none; transition: opacity 1.6s ease;
+      }
+      #curtain.up { opacity: 0; }
+      #curtain.quick { transition-duration: 0.4s; }
+
+      /* On a phone held upright: everything waits under a night-blue sheet
+         asking for it to be turned on its side. */
+      #rotate {
+        position: fixed; inset: 0; z-index: 10; display: none;
+        flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+        padding: 0 16px; text-align: center; background: #0b0d18; color: var(--paper);
+      }
+      #rotate svg { width: 46px; height: 46px; color: rgba(201, 164, 92, 0.85); animation: rotate-hint 2.8s cubic-bezier(0.5, 0, 0.3, 1) infinite; }
+      #rotate .zh { font: 300 22px/1 'Noto Serif SC', serif; letter-spacing: 0.3em; padding-left: 0.3em; }
+      #rotate .en {
+        font: 500 12px/1.6 'Cormorant Garamond', serif; letter-spacing: 0.32em; padding-left: 0.32em;
+        text-transform: uppercase; color: rgba(239, 230, 210, 0.7);
+      }
+      @keyframes rotate-hint { 0%, 20% { transform: rotate(0); } 50%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+      @media (orientation: portrait) and (pointer: coarse) {
+        #rotate { display: flex; }
+      }
+
+      /* ── Hold to skip: shows while a key or the pointer is held during a
+         cutscene, its ring filling until the scene skips to the flight. ── */
+      #skip {
+        position: fixed; right: clamp(20px, 4vw, 56px); bottom: calc(7vh + 18px); z-index: 4;
+        display: flex; align-items: center; gap: 10px; pointer-events: none;
+        color: rgba(239, 230, 210, 0.82); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+        font: 500 12px/1 'Cormorant Garamond', serif; letter-spacing: 0.3em; text-transform: uppercase;
+        opacity: 0; transition: opacity 0.4s ease;
+      }
+      #skip.show { opacity: 1; }
+      #skip svg { width: 22px; height: 22px; transform: rotate(-90deg); }
+      #skip circle { fill: none; stroke-width: 1.5; }
+      #skip .track { stroke: rgba(239, 230, 210, 0.22); }
+      #skip .fill { stroke: var(--gold); stroke-dasharray: 56.55; stroke-dashoffset: calc(56.55 * (1 - var(--p, 0))); }
       #hint {
-        position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
-        padding: 8px 14px; border-radius: 8px;
-        background: rgba(0, 0, 0, 0.55); color: #fff;
-        font: 14px/1.4 system-ui, sans-serif; pointer-events: none;
+        position: fixed; z-index: 4; left: 50%; bottom: 24px; transform: translateX(-50%);
+        color: rgba(239, 230, 210, 0.55); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+        font: 500 12px/1.4 'Cormorant Garamond', serif; letter-spacing: 0.3em; text-transform: uppercase;
+        pointer-events: none;
       }
       #hint:empty { display: none; }
+
+      /* ── The flight's controls - steer toward the pointer, or hold where
+         to go - clear at the foot of the frame until she is first
+         steered, then gone. ── */
+      #controls {
+        position: fixed; left: 50%; bottom: 6vh; z-index: 1; transform: translate(-50%, 6px);
+        display: flex; align-items: center; gap: 10px; padding: 12px 22px;
+        color: var(--paper); pointer-events: none; opacity: 0;
+        transition: opacity 0.9s ease, transform 0.9s ease;
+      }
+      #controls::before {
+        content: ''; position: absolute; inset: -14px -40px; z-index: -1;
+        background: radial-gradient(closest-side, rgba(12, 8, 18, 0.45), transparent);
+      }
+      #controls.show { opacity: 1; transform: translate(-50%, 0); transition-delay: 0.8s; }
+      #controls svg { width: 64px; height: 44px; flex: none; overflow: visible; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      #controls .arrow { stroke: rgba(201, 164, 92, 0.85); stroke-width: 1.6; }
+      #controls .mouse, #controls .touch { stroke: var(--paper); stroke-width: 1.4; }
+      #controls .finger { stroke: var(--paper); stroke-width: 1.4; fill: rgba(239, 230, 210, 0.18); display: none; }
+      /* the mouse (or a fingertip) wanders round: side to side, up and down */
+      #controls .glyph { animation: steer-sway 4s ease-in-out infinite; }
+      @keyframes steer-sway {
+        0%, 100% { transform: translate(-9px, 0); } 25% { transform: translate(0, -5px); }
+        50% { transform: translate(9px, 0); } 75% { transform: translate(0, 5px); }
+      }
+      #controls .by-touch { display: none; }
+      @media (pointer: coarse) {
+        #controls .mouse, #controls .touch, #controls .by-mouse { display: none; }
+        #controls .finger { display: inline; }
+        #controls .by-touch { display: inline; }
+      }
+      #controls span {
+        margin-left: 10px; font: 600 17px/1 'Cormorant Garamond', serif; letter-spacing: 0.34em;
+        text-transform: uppercase; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55); white-space: nowrap;
+      }
+      @media (max-width: 720px), (max-height: 480px) {
+        #controls { bottom: 5vh; }
+        #controls span { font-size: 13px; letter-spacing: 0.26em; }
+      }
 
       /* ── Over the scene: a vignette, film grain, and the letterbox that
          closes in once the story starts. ── */
@@ -47,55 +129,58 @@
       body.cinema .bar { transform: none; }
 
       /* ── The area's title as the flight begins: the name tracks in out of a
-         blur under a gold rule drawn from the middle, holds, and drifts off. ── */
+         blur under a gold rule drawn from the middle, holds, and drifts off -
+         small and high, so the flight stays the subject. ── */
       #area {
-        position: fixed; left: 0; right: 0; top: 14vh; z-index: 1;
-        display: flex; flex-direction: column; align-items: center; gap: 16px;
+        position: fixed; left: 0; right: 0; top: 11vh; z-index: 1;
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
         padding: 0 16px; color: var(--paper); text-align: center;
         pointer-events: none; opacity: 0;
       }
       #area::before {
         /* a faint ink wash so it reads against the bright sky */
         content: ''; position: absolute; left: 50%; top: 50%; z-index: -1;
-        width: min(820px, 100vw); height: 260%; transform: translate(-50%, -50%);
-        background: radial-gradient(closest-side, rgba(16, 10, 24, 0.34), transparent);
+        width: min(560px, 100vw); height: 240%; transform: translate(-50%, -50%);
+        background: radial-gradient(closest-side, rgba(16, 10, 24, 0.32), rgba(16, 10, 24, 0.12) 60%, transparent);
       }
       .area-en {
-        font: 600 clamp(14px, 1.7vw, 22px)/1 'Cormorant Garamond', serif;
-        letter-spacing: 0.52em; padding-left: 0.52em; text-transform: uppercase;
-        color: rgba(239, 230, 210, 0.95); text-shadow: 0 0 18px rgba(30, 16, 8, 0.55);
+        font: 500 clamp(11px, 1vw, 14px)/1 'Cormorant Garamond', serif;
+        letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase;
+        color: rgba(246, 239, 224, 0.92); text-shadow: 0 0 10px rgba(20, 10, 4, 0.7), 0 1px 2px rgba(0, 0, 0, 0.5);
       }
-      .area-rule { display: flex; align-items: center; gap: 10px; width: min(360px, 72vw); }
+      .area-rule { display: flex; align-items: center; gap: 8px; width: min(220px, 56vw); opacity: 0.85; }
       .area-rule::before, .area-rule::after { content: ''; flex: 1; height: 1px; transform: scaleX(0); }
       .area-rule::before { background: linear-gradient(to left, var(--gold), transparent); transform-origin: right; }
       .area-rule::after { background: linear-gradient(to right, var(--gold), transparent); transform-origin: left; }
-      .area-rule span { width: 5px; height: 5px; border: 1px solid var(--gold); transform: rotate(45deg); opacity: 0; }
+      .area-rule span { width: 4px; height: 4px; border: 1px solid var(--gold); transform: rotate(45deg); opacity: 0; }
       .area-zh {
-        font: 600 clamp(38px, 6vw, 84px)/1.15 'Noto Serif SC', 'Shippori Mincho B1', serif;
-        letter-spacing: 0.42em; padding-left: 0.42em;
-        text-shadow: 0 0 30px rgba(40, 20, 4, 0.5), 0 2px 2px rgba(0, 0, 0, 0.3);
+        font: 600 clamp(26px, 3.4vw, 46px)/1.15 'Noto Serif SC', 'Shippori Mincho B1', serif;
+        letter-spacing: 0.42em; padding-left: 0.42em; color: #f6efe0;
+        text-shadow: 0 0 18px rgba(24, 12, 4, 0.65), 0 0 4px rgba(24, 12, 4, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
       }
-      #area.play { animation: area 8s ease forwards; }
-      #area.play .area-zh { animation: area-zh 8s cubic-bezier(0.2, 0.6, 0.2, 1) forwards; }
-      #area.play .area-en { animation: area-en 8s ease forwards; }
-      #area.play .area-rule::before, #area.play .area-rule::after { animation: area-rule 8s cubic-bezier(0.6, 0, 0.2, 1) forwards; }
-      #area.play .area-rule span { animation: area-en 8s ease forwards; }
-      @keyframes area { 0% { opacity: 0; } 8% { opacity: 1; } 84% { opacity: 1; } 100% { opacity: 0; } }
+      #area.play { animation: area 6.5s ease forwards; }
+      #area.play .area-zh { animation: area-zh 6.5s cubic-bezier(0.2, 0.6, 0.2, 1) forwards; }
+      #area.play .area-en { animation: area-en 6.5s ease forwards; }
+      #area.play .area-rule::before, #area.play .area-rule::after { animation: area-rule 6.5s cubic-bezier(0.6, 0, 0.2, 1) forwards; }
+      #area.play .area-rule span { animation: area-en 6.5s ease forwards; }
+      @keyframes area { 0% { opacity: 0; } 10% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
       @keyframes area-zh {
-        0% { opacity: 0; letter-spacing: 0.8em; padding-left: 0.8em; filter: blur(10px); }
+        0% { opacity: 0; letter-spacing: 0.7em; padding-left: 0.7em; filter: blur(8px); }
         34% { opacity: 1; letter-spacing: 0.42em; padding-left: 0.42em; filter: blur(0); }
         84% { opacity: 1; transform: none; filter: blur(0); }
-        100% { opacity: 0; transform: translateY(-10px); filter: blur(6px); }
+        100% { opacity: 0; transform: translateY(-6px); filter: blur(5px); }
       }
       @keyframes area-en {
-        0%, 16% { opacity: 0; transform: translateY(6px); filter: blur(4px); }
+        0%, 16% { opacity: 0; transform: translateY(4px); filter: blur(3px); }
         36% { opacity: 1; transform: none; filter: blur(0); }
         84% { opacity: 1; transform: none; filter: blur(0); }
-        100% { opacity: 0; transform: translateY(-6px); filter: blur(4px); }
+        100% { opacity: 0; transform: translateY(-4px); filter: blur(3px); }
       }
       @keyframes area-rule { 0%, 12% { transform: scaleX(0); } 40% { transform: scaleX(1); } 100% { transform: scaleX(1); } }
 
-      /* ── Title menu: a vertical title, one line, and Start on the right ── */
+      /* ── Title menu: a vertical title and, beside it on a hairline as tall
+         as it, the English name and Start under it - kept quiet: thin type,
+         no fills, so the night is the picture. ── */
       #menu {
         position: fixed; inset: 0; display: flex; justify-content: flex-end; align-items: center;
         pointer-events: none; opacity: 0; visibility: hidden;
@@ -106,58 +191,81 @@
       #menu::before {
         /* an ink wash behind the panel, fading out toward her */
         content: ''; position: absolute; inset: 0;
-        background: radial-gradient(ellipse 50% 80% at 100% 50%, rgba(6, 8, 16, 0.7), rgba(6, 8, 16, 0.3) 50%, transparent 78%);
+        background: radial-gradient(ellipse 46% 74% at 100% 50%, rgba(6, 8, 16, 0.42), rgba(6, 8, 16, 0.16) 50%, transparent 78%);
       }
       .panel {
         position: relative; z-index: 1; margin-right: clamp(32px, 10vw, 160px);
-        display: flex; align-items: center; gap: 30px; color: var(--paper);
+        display: flex; align-items: stretch; gap: 26px; color: var(--paper);
       }
       .title-v {
         margin: 0; writing-mode: vertical-rl; text-orientation: upright;
-        font: 400 clamp(44px, 5.6vw, 72px)/1 'Yuji Syuku', 'Shippori Mincho B1', serif;
-        letter-spacing: 0.16em;
-        text-shadow: 0 0 24px rgba(0, 0, 0, 0.6), 0 2px 1px rgba(0, 0, 0, 0.4);
+        font: 300 clamp(22px, 2.4vw, 32px)/1 'Noto Serif SC', 'Shippori Mincho B1', serif;
+        letter-spacing: 0.14em; color: rgba(239, 230, 210, 0.9);
+        text-shadow: 0 0 20px rgba(0, 0, 0, 0.45);
       }
-      .side { display: flex; flex-direction: column; align-items: flex-start; gap: 26px; padding-left: 26px; border-left: 1px solid var(--gold-dim); }
+      .side {
+        position: relative; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+        gap: 22px; padding: 4px 0 4px 24px;
+      }
+      .side::before {
+        /* the hairline, fading out at both ends */
+        content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 1px;
+        background: linear-gradient(to bottom, transparent, rgba(201, 164, 92, 0.4) 18%, rgba(201, 164, 92, 0.4) 82%, transparent);
+      }
+      .actions { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
       .title-en {
-        font: 600 clamp(15px, 1.4vw, 19px)/1.3 'Cormorant Garamond', serif;
-        letter-spacing: 0.32em; text-transform: uppercase; color: rgba(239, 230, 210, 0.92);
+        font: 500 clamp(12px, 1.05vw, 15px)/2 'Cormorant Garamond', serif;
+        letter-spacing: 0.32em; text-transform: uppercase; color: rgba(239, 230, 210, 0.72);
       }
       #start {
         pointer-events: auto; cursor: pointer;
-        display: inline-flex; align-items: center; gap: 12px;
-        padding: 11px 26px 11px 14px; border: 1px solid var(--gold); border-radius: 2px;
-        background: rgba(126, 29, 24, 0.82); color: #f8ecd9;
-        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
-        font: 600 16px/1 'Cormorant Garamond', serif; letter-spacing: 0.34em; text-transform: uppercase;
-        transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+        position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 12px;
+        padding: 6px 0 8px; border: 0; background: none; color: rgba(239, 230, 210, 0.78);
+        font: 500 14px/1 'Cormorant Garamond', serif; letter-spacing: 0.4em; text-transform: uppercase;
+        transition: color 0.4s ease, letter-spacing 0.6s cubic-bezier(0.2, 0.6, 0.2, 1), text-shadow 0.4s ease;
       }
-      #start .kanji { font: 700 18px/1 'Shippori Mincho B1', serif; letter-spacing: 0; color: var(--gold); }
-      #start:hover, #start:focus-visible { transform: translateY(-2px); background: rgba(184, 50, 42, 0.92); box-shadow: 0 0 0 5px rgba(201, 164, 92, 0.16), 0 12px 26px rgba(0, 0, 0, 0.45); }
-      #start:focus-visible { outline: 1px solid var(--gold); outline-offset: 5px; }
-      #start:active { transform: translateY(1px); }
+      /* a warm glow behind it that comes up on hover */
+      #start::before {
+        content: ''; position: absolute; left: -22px; right: -14px; top: -10px; bottom: -10px; z-index: -1;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(201, 164, 92, 0.22), transparent 72%);
+        opacity: 0; transition: opacity 0.5s ease;
+      }
+      /* a hairline under it that draws out on hover */
+      #start::after {
+        content: ''; position: absolute; left: 0; right: 0.4em; bottom: 0; height: 1px;
+        background: linear-gradient(to right, var(--gold-dim), transparent);
+        transform: scaleX(0.35); transform-origin: left; transition: transform 0.6s cubic-bezier(0.2, 0.6, 0.2, 1);
+      }
+      #start .kanji { font: 400 14px/1 'Noto Serif SC', serif; letter-spacing: 0; color: rgba(201, 164, 92, 0.75); transition: color 0.4s ease, text-shadow 0.4s ease; }
+      #start:hover, #start:focus-visible { color: var(--paper); letter-spacing: 0.5em; text-shadow: 0 0 14px rgba(255, 220, 160, 0.55); }
+      #start:hover .kanji, #start:focus-visible .kanji { color: rgb(226, 190, 118); text-shadow: 0 0 12px rgba(226, 190, 118, 0.8); }
+      #start:hover::before, #start:focus-visible::before { opacity: 1; }
+      #start:hover::after, #start:focus-visible::after { transform: scaleX(1); background: linear-gradient(to right, rgba(226, 190, 118, 0.9), transparent); }
+      #start:focus-visible { outline: none; }
       .foot {
-        font: 500 12px/1 'Cormorant Garamond', serif; letter-spacing: 0.3em; text-transform: uppercase;
-        color: rgba(201, 164, 92, 0.7);
+        font: 500 11px/1 'Cormorant Garamond', serif; letter-spacing: 0.3em; text-transform: uppercase;
+        color: rgba(201, 164, 92, 0.45);
       }
       /* Each piece comes in on its own beat. */
-      .panel > *, .side > * { opacity: 0; transform: translateY(8px); filter: blur(3px); transition: opacity 1.2s ease, transform 1.2s ease, filter 1.2s ease; }
-      #menu.show .panel > *, #menu.show .side > * { opacity: 1; transform: none; filter: none; }
+      .panel > *, .side > *, .actions > * { opacity: 0; transform: translateY(8px); filter: blur(3px); transition: opacity 1.2s ease, transform 1.2s ease, filter 1.2s ease; }
+      .side > .actions { opacity: 1; transform: none; filter: none; }
+      #menu.show .panel > *, #menu.show .side > *, #menu.show .actions > * { opacity: 1; transform: none; filter: none; }
       #menu.show .title-v { transition-delay: 0.3s; }
       #menu.show .side { transition-delay: 0.7s; }
       #menu.show .title-en { transition-delay: 0.9s; }
-      #menu.show #start { transition: opacity 1.2s ease 1.4s, transform 1.2s ease 1.4s, filter 1.2s ease 1.4s, background 0.25s ease, box-shadow 0.25s ease; }
-      #menu.show #start:hover { transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease; }
+      #menu.show #start { transition: opacity 1.2s ease 1.4s, transform 1.2s ease 1.4s, filter 1.2s ease 1.4s, color 0.4s ease, letter-spacing 0.6s cubic-bezier(0.2, 0.6, 0.2, 1), text-shadow 0.4s ease; }
+      #menu.show #start:hover { transition: color 0.4s ease, letter-spacing 0.6s cubic-bezier(0.2, 0.6, 0.2, 1), text-shadow 0.4s ease; }
       #menu.show .foot { transition-delay: 1.9s; }
       /* On Start the panel fades out whole. */
-      #menu.leaving .panel > *, #menu.leaving .side > * { opacity: 1; transform: none; filter: none; }
+      #menu.leaving .panel > *, #menu.leaving .side > *, #menu.leaving .actions > * { opacity: 1; transform: none; filter: none; }
       @media (max-width: 720px) {
         #menu { align-items: flex-end; }
         .panel { margin: 0 20px 14vh auto; gap: 18px; }
-        .title-v { font-size: 40px; }
-        .side { padding-left: 18px; gap: 20px; }
+        .title-v { font-size: 24px; }
+        .side { padding-left: 18px; gap: 18px; }
       }
       @media (prefers-reduced-motion: reduce) {
+        #rotate svg, #controls .glyph { animation: none; }
         #grain { animation: none; }
         #area.play .area-zh, #area.play .area-en, #area.play .area-rule span { animation: none; }
         #area.play .area-rule::before, #area.play .area-rule::after { animation: none; transform: none; }
@@ -167,17 +275,27 @@
   </head>
   <body>
     <canvas id="canvas"></canvas>
+    <div id="curtain"></div>
+    <div id="rotate" role="alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+        <rect x="7" y="2.5" width="10" height="19" rx="1.8" /><path d="M10.5 18.5h3" />
+      </svg>
+      <div class="zh" lang="zh-Hans">请横屏</div>
+      <div class="en">Turn your device to landscape</div>
+    </div>
     <div id="vignette"></div>
     <div id="grain"></div>
     <div class="bar top"></div>
     <div class="bar bottom"></div>
     <div id="menu" aria-hidden="true">
       <div class="panel">
-        <h1 class="title-v" lang="ja">浮島の社</h1>
+        <h1 class="title-v" lang="zh-Hans">醒于云端</h1>
         <div class="side">
-          <div class="title-en">Floating Island Sanctuary</div>
-          <button id="start" type="button"><span class="kanji" lang="ja">始</span>Start</button>
-          <div class="foot">Press Enter</div>
+          <div class="title-en">Waking Above<br /> the Clouds</div>
+          <div class="actions">
+            <button id="start" type="button"><span class="kanji" lang="zh-Hans">启</span>Start</button>
+            <div class="foot">Press Enter</div>
+          </div>
         </div>
       </div>
     </div>
@@ -185,6 +303,18 @@
       <div class="area-en">Where Clouds Rest</div>
       <div class="area-rule"><span></span></div>
       <div class="area-zh" lang="zh-Hans">云栖之境</div>
+    </div>
+    <div id="skip" aria-hidden="true">
+      <svg viewBox="0 0 22 22"><circle class="track" cx="11" cy="11" r="9" /><circle class="fill" cx="11" cy="11" r="9" /></svg>
+      <span>Hold to skip</span>
+    </div>
+    <div id="controls" aria-hidden="true">
+      <svg viewBox="0 0 64 44" aria-hidden="true">
+        <path class="arrow" d="M9 17l-5 5 5 5" /><path class="arrow" d="M55 17l5 5-5 5" />
+        <path class="arrow" d="M27 6l5-5 5 5" /><path class="arrow" d="M27 38l5 5 5-5" />
+        <g class="glyph"><rect class="mouse" x="25" y="11" width="14" height="22" rx="7" /><path class="touch" d="M32 12v6" /><circle class="finger" cx="32" cy="22" r="6" /></g>
+      </svg>
+      <span class="by-mouse">Move the mouse to steer</span><span class="by-touch">Hold where you want to fly</span>
     </div>
     <div id="fade"></div>
     <div id="hint">Loading…</div>

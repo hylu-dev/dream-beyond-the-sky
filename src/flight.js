@@ -2,10 +2,11 @@ import { Quat, Vec3 } from 'playcanvas';
 import { fbm1 } from './noise.js';
 
 // On-rails flight with weight. She always travels along `headingDeg` at
-// `speed`; the player only banks. The bank is a spring (it overshoots and
-// settles), and a bank pushes her sideways the way a banked turn would, with
-// drag bleeding the drift off again and her nose swinging a few degrees into
-// it. Gusts nudge her about and feed the camera. Units are metres, seconds,
+// `speed`; the player banks, and climbs or dives. The bank is a spring (it
+// overshoots and settles), and a bank pushes her sideways the way a banked
+// turn would, with drag bleeding the drift off again and her nose swinging a
+// few degrees into it. A climb or dive eases in and out, tips her nose along
+// it, and slows to a stop toward the top and bottom of the air she has. Gusts nudge her about and feed the camera. Units are metres, seconds,
 // degrees; `pos` is the middle of her body, not her feet. A cut-scene can
 // drive `state.speed`, `state.pitchDeg` and the height directly.
 
@@ -21,7 +22,11 @@ export const FLIGHT_DEFAULTS = {
   yawPerLateral: 2.5, // degrees of nose swing per m/s of drift
   bodyPitchDeg: 80, // standing pose tipped forward to lie belly-down
   pelvisHeight: 0.95, // her pivot, above her feet in the standing pose
-  altitudeSpring: 0.6, // pulls her back to the height she started at
+  altitudeSpring: 0.6, // pulls her back to the height she is flying at
+  maxClimb: 5, // m/s, up or down
+  climbRate: 2.5, // 1/s, how quickly a climb comes and goes
+  climbRange: [-16, 16], // metres from where the flight started
+  climbSoft: 5, // metres short of either end where she starts to level off
   turbulence: 1.2, // gust acceleration, m/s^2
   pocketRate: 0.22, // how often rough-air pockets come round
   pocketThreshold: 0.25, // higher: rarer pockets
@@ -46,6 +51,9 @@ export function createFlight(options = {}) {
     left: new Vec3(),
     altitude: 0,
     lateralVel: 0,
+    climbVel: 0, // m/s, + up
+    climbPitchDeg: 0, // her nose along the climb; negative is up
+    baseAltitude: 0, // where the flight started
     bankDeg: 0,
     bankVel: 0,
     targetBankDeg: 0,
@@ -76,7 +84,8 @@ export function createFlight(options = {}) {
     s.headingDeg = headingDeg;
     setHeadingAxes();
     s.pos.set(x, y, z);
-    s.altitude = y;
+    s.altitude = s.baseAltitude = y;
+    s.climbVel = s.climbPitchDeg = 0;
     s.lateralVel = s.bankDeg = s.bankVel = s.targetBankDeg = s.pitchDeg = s.flail = 0;
     s.yawDeg = headingDeg;
     s.speed = o.speed;
@@ -105,10 +114,20 @@ export function createFlight(options = {}) {
     const g = o.turbulence * (1 + s.pocket * o.pocketStrength);
     s.gust.set(fbm1(s.time * 0.9, 1) * g, fbm1(s.time * 0.7, 2) * g, fbm1(s.time * 0.8, 3) * g * 0.5);
 
+    // Up (climb = +1) or down, easing to a stop toward either end of the range.
+    const climb = input.climb ?? 0;
+    const above = s.altitude - s.baseAltitude;
+    const room = climb > 0 ? o.climbRange[1] - above : above - o.climbRange[0];
+    const ease = Math.min(Math.max(room / o.climbSoft, 0), 1);
+    const goalClimb = climb * o.maxClimb * ease * ease * (3 - 2 * ease);
+    s.climbVel += (goalClimb - s.climbVel) * (1 - Math.exp(-o.climbRate * dt));
+    s.altitude += s.climbVel * dt;
+    s.climbPitchDeg = (-Math.atan2(s.climbVel, s.speed) * 180) / Math.PI;
+
     s.vel.copy(s.forward).mulScalar(s.speed);
     s.vel.x += s.left.x * s.lateralVel + s.gust.x * 0.4;
     s.vel.z += s.left.z * s.lateralVel;
-    s.vel.y = s.gust.y * 0.6 - (s.pos.y - s.altitude) * o.altitudeSpring;
+    s.vel.y = s.climbVel + s.gust.y * 0.6 - (s.pos.y - s.altitude) * o.altitudeSpring;
 
     s.pos.x += s.vel.x * dt;
     s.pos.y += s.vel.y * dt;
@@ -122,7 +141,7 @@ export function createFlight(options = {}) {
     const w = (seed, rate, deg) => fbm1(s.time * rate, seed) * deg * s.flail;
     qYaw.setFromAxisAngle(UP, s.yawDeg + w(21, 0.9, o.flailYawDeg));
     qRoll.setFromAxisAngle(FORWARD, s.bankDeg + s.gust.x * 2.5 + w(22, 1.3, o.flailRollDeg));
-    qPitch.setFromAxisAngle(RIGHT, o.bodyPitchDeg + s.pitchDeg + s.gust.y * 2 + w(23, 1.1, o.flailPitchDeg));
+    qPitch.setFromAxisAngle(RIGHT, o.bodyPitchDeg + s.pitchDeg + s.climbPitchDeg + s.gust.y * 2 + w(23, 1.1, o.flailPitchDeg));
     return orientation.mul2(qYaw, qRoll).mul(qPitch);
   }
 
@@ -139,6 +158,6 @@ export function createFlight(options = {}) {
     update,
     getOrientation,
     getFeetPosition,
-    speedNorm: () => o.rush,
+    speedNorm: () => o.rush * Math.min(Math.abs(s.speed) / Math.max(o.speed, 0.01), 1.8),
   };
 }

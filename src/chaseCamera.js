@@ -8,6 +8,8 @@ import { fbm1 } from './noise.js';
 //    showing her banked silhouette, and aims ahead into the turn;
 //  - it leans with her, pushes in during a bank, and kicks its field of view
 //    as a roll starts;
+//  - in a climb or dive it drops in behind her on her line, below or above,
+//    and looks along it, up or down;
 //  - it shakes with the wind, much harder inside a turbulence pocket;
 //  - while she flails (flight.state.flail) it lurches with her.
 // Pass `apply: false` to only compute `pose`, e.g. to blend into it from a
@@ -21,6 +23,7 @@ export const CHASE_DEFAULTS = {
   swingOut: 1.3, // metres to the outside of a full bank
   aimIntoTurn: 1.6, // metres the look point leads into a full bank
   lookAhead: 1.8,
+  climbLook: 1.6, // how far up or down it looks along a climb, for its slope
   driftLead: 0.12, // seconds of her drift the camera anticipates
   fov: 55,
   fovKick: 7, // degrees added by a fast roll
@@ -76,8 +79,12 @@ export function createChaseCamera(cameraEntity, options = {}) {
     goal.copy(s.forward).mulScalar(-dist).add(s.pos);
     goal.x += s.left.x * lateral;
     goal.z += s.left.z * lateral;
-    goal.y += o.height - o.bankDrop * Math.abs(roll);
+    // On her line: as far below her (or above) as the climb's slope over
+    // its distance behind.
+    const slope = (s.climbVel ?? 0) / s.speed;
+    goal.y += o.height - o.bankDrop * Math.abs(roll) - slope * dist;
     target.copy(s.forward).mulScalar(o.lookAhead).add(s.pos);
+    target.y += slope * o.lookAhead * o.climbLook;
     target.x += s.left.x * roll * o.aimIntoTurn;
     target.z += s.left.z * roll * o.aimIntoTurn;
   }

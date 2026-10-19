@@ -18,14 +18,16 @@ import { createFlightRig } from './flightRig.js';
 import { createChaseCamera } from './chaseCamera.js';
 import { createLaunchShot } from './launchShot.js';
 import { createWindFx } from './windFx.js';
+import { createFlightScenery } from './flightScenery.js';
+import { createFlightAir } from './flightAir.js';
 import { fbm1 } from './noise.js';
 
 // ── Tunables (mock values; iterate on these) ───────────────────────────────
 
 // Metres per file unit, measured offline: the floor sits 1.5 m below each
-// capture point, at 0.1809 units in the island realm and 0.3635 in the sky.
+// capture point, at 0.1809 units in the island realm and 0.2473 in the sky.
 const REALM_M_PER_UNIT = 8.2915;
-const SKY_M_PER_UNIT = 4.126;
+const SKY_M_PER_UNIT = 6.065;
 
 // At true scale the sky reconstruction is only ~30 m across - a panorama
 // flattens distant clouds onto a near shell - so blow it up to read as vast.
@@ -50,7 +52,7 @@ const SKY_SCALE = 30;
 // golden hour, and at its height the world swims in a pulse of light. Then
 // the camera backs slowly straight out and finds her standing at the edge,
 // her back to us; it waits there, rumbling, and she jumps (vanish.glb, PINOC
-// "Vanish").
+// "Leap Off Cliff").
 const SEAT = {
   x: -1.2,
   y: 2.15, // her feet
@@ -105,24 +107,24 @@ const PORTRAIT = {
   panAt: 2.3,
 };
 
-// Then it moves in beside her face - a metre off, at her front right - still
-// on her as she looks up, and from there turns away right, toward what she
-// sees, rising over her head as it goes: it ends just over her and in front,
-// looking out where she looks, with her below the frame. The golden sun sits
+// Then it sweeps in one arc - in toward her front right, and on up over her
+// head - to just over her and in front, looking out where she looks, with
+// her below the frame. Behind the move the look turns away from her face,
+// right, toward what she sees, in one sweep. The golden sun sits
 // on the middle of the frame, a little over centre, above the realm (any
 // higher a look and the back-out could not take in her feet at the edge).
 // It holds there for the dawn.
 const VIEW = {
-  beside: { x: -1.51, y: 3.2, z: -4.03 }, // by her face, a little under it, on the way
+  beside: { x: -1.51, y: 3.2, z: -4.03 }, // the arc bends toward here, by her face
   position: { x: -0.5, y: 3.8, z: -3.6 },
   sunYawDeg: 1, // the look turned this far left of the golden sun
   pitchDeg: 11,
   fov: 46,
   turnSeconds: 9,
-  // The look turns in one sweep, right and a little down, lagging the move
-  // (its share of the turn is the move's to this power) so her face is
-  // still in frame as the camera comes beside her, halfway.
-  lookLag: 1.6,
+  // The look turns in one sweep, right and a little down, starting this
+  // share of the way into the move, so it leaves her face as the move gets
+  // going.
+  lookLag: 0.2,
   drift: { metres: 0.02, hz: 0.12 },
   // The hand-held sway from the portrait on, so it never changes step;
   // the menu's own, at the 0.4 the approach brings it down to.
@@ -148,27 +150,36 @@ const BACK_OUT = {
 };
 
 // The edge: a lip at the north-east of the brow over a drop of nearly two
-// metres. vanish.glb steps her off to her right, so she stands turned that
-// much left of the drop - which puts her back to the camera.
+// metres. She waits on it quite still, in vanish.glb's first frame, and
+// then the clip runs on from there: it takes her off some 38 degrees to
+// her right, so she stands turned that much left of the drop - which puts
+// her back to the camera.
 const BRINK = {
   x: 2.1,
   y: 1.47, // the lip under her feet
   z: -4.6,
-  headingDeg: 92,
+  headingDeg: 83,
   waitSeconds: 3.2, // after the camera stops, rumbling
-  vanishFade: 0.35,
   rumble: { metres: 0.012, rollDeg: 0.35, hz: 7, buildSeconds: 2.4 },
 };
 
 // She jumps off the edge. The engine keeps clips in place, so she moves
 // along the clip's own travel (vanish.path.json); once her feet leave the lip
-// (`lipAt`) that is where she went from, and when the clip ends she falls
-// on, out of sight below the edge. The flight heads `headingDeg`, out over
-// the drop she jumped into and toward the sun.
+// (`lipAt`) that is where she went from, and the clip drops her off it. For
+// its last moments (`settleSeconds`) the clip slows to a stop, so her limbs
+// come to rest in its fall pose rather than freezing mid-move, while she
+// falls on the line and at the pace it left her, gathering to `fallGravity`
+// over `gatherSeconds`, out of sight below the edge. (The clip was authored on a
+// 1.17 m ledge; vanish.glb has it baked down to the lip, its pelvis
+// smoothed, and is cut before she draws back in to land.)
+// The flight heads `headingDeg`, out over the drop she jumped into and
+// toward the sun.
 const EDGE = {
   headingDeg: 62,
-  lipAt: 2.0, // seconds into vanish.glb
+  lipAt: 1.7, // seconds into vanish.glb, as her feet leave it
   fallGravity: 13, // a touch over g, so the drop is quick
+  gatherSeconds: 0.4,
+  settleSeconds: 0.6,
   hiddenAfter: 0.6, // seconds of falling before she is below the edge
 };
 
@@ -254,24 +265,30 @@ const FLY_START = { x: 0, y: 0, z: 0 };
 // clouds and streaks in windFx.js carry the sense of speed. It is turned to
 // her heading, so she always looks down the same view of it.
 const SKY_PARALLAX = 0.03;
-// The bearing in the sky capture she flies down: the low sun just right of
-// ahead, with the far castle on the horizon under it.
-const SKY_VIEW_DEG = 135;
-// The sky capture is already in golden hour, so the island's grade is laid
-// on it only this much, to match rather than to recolour it.
-const SKY_GRADE_SHARE = 0.35;
+// The bearing in the sky capture she flies down: out over the sea of cloud
+// to the far realm of spires, under the bright of the horizon.
+const SKY_VIEW_DEG = 120;
+// The island's golden grade comes with her into the sky, laid on it at
+// `share` (on her at `herShare`) so the swap does not show; then, `after`
+// seconds on, it eases down over `seconds` to `settle` of that, and the sky
+// capture's own softer light takes over.
+const SKY_GRADE = { share: 0.35, herShare: 0.85, settle: 0.3, after: 1, seconds: 6 };
 
 // The area's title (index.html #area) comes up this long after the flight
-// begins, once the cloud bank is behind her; its CSS animation runs the rest.
-const AREA_TITLE = { after: 1.2 };
+// begins, once the cloud bank is behind her; its CSS animation runs the rest,
+// for `seconds` (as in index.html), and the controls come up as it goes.
+const AREA_TITLE = { after: 1.2, seconds: 6.5, controlsBefore: 0.8 };
 
 // ── Setup ───────────────────────────────────────────────────────────────────
 
 const canvas = document.getElementById('canvas');
 const fadeEl = document.getElementById('fade');
+const curtainEl = document.getElementById('curtain');
+const skipEl = document.getElementById('skip');
 const hintEl = document.getElementById('hint');
 const areaEl = document.getElementById('area');
 const menuEl = document.getElementById('menu');
+const controlsEl = document.getElementById('controls');
 const startEl = document.getElementById('start');
 
 
@@ -284,14 +301,13 @@ const [sanctuary, sky, character] = await Promise.all([
     scale: REALM_M_PER_UNIT,
     position: { x: 0, y: 1.5, z: 0 }, // floor at y = 0
   }),
-  Environment.load(scene, '/assets/floating-sky-islands.spz', {
+  Environment.load(scene, '/assets/cloud-realm.spz', {
     scale: SKY_M_PER_UNIT * SKY_SCALE,
   }),
   Character.load(scene, '/assets/martial-artist.vsplat'),
   Animation.loadGlb(scene, '/assets/anims/idle.glb', 'idle'),
   Animation.loadGlb(scene, '/assets/anims/doze.glb', 'doze'),
   Animation.loadGlb(scene, '/assets/anims/wake.glb', 'wake'),
-  Animation.loadGlb(scene, '/assets/anims/brink.glb', 'brink'),
   Animation.loadGlb(scene, '/assets/anims/vanish.glb', 'vanish'),
   Animation.loadGlb(scene, '/assets/anims/flail.glb', 'flail'),
 ]);
@@ -328,9 +344,18 @@ const flight = createFlight({ headingDeg: EDGE.headingDeg });
 const flightRig = createFlightRig(character);
 const chaseCamera = createChaseCamera(scene.cameraEntity);
 const launchShot = createLaunchShot(scene.cameraEntity, chaseCamera);
-// The near clouds in the sky capture's golden-hour light: lavender shade
-// underneath, peach where the low sun catches their tops.
-const windFx = createWindFx(scene, { baseColor: [0.6, 0.62, 0.8], topColor: [1, 0.86, 0.68] });
+// The near clouds in the golden hour she leaves the island in: a dusky rose
+// underneath, orange where the low sun catches their tops.
+// The clouds' tints, foot and top: warm off the island, in the golden light,
+// and white over lavender shadow in the sky scene, like its own clouds -
+// they cool as its grade settles (SKY_GRADE).
+const CLOUD_COLORS = {
+  warm: { base: [0.7, 0.62, 0.72], top: [1, 0.8, 0.58] },
+  sky: { base: [0.7, 0.72, 0.85], top: [1, 0.98, 0.97] },
+};
+const windFx = createWindFx(scene, { baseColor: CLOUD_COLORS.warm.base, topColor: CLOUD_COLORS.warm.top });
+const flightScenery = createFlightScenery(scene);
+const flightAir = createFlightAir(scene);
 
 // Debug switches for the time-lapse: ?phase=0.25 freezes it (0 noon,
 // 0.25 sunset, 0.5 midnight), ?sky=0 drops the SkyDome, ?clip=40 moves the
@@ -360,6 +385,58 @@ startEl.addEventListener('click', () => {
   if (state === 'menu') startAwakening();
 });
 const axis = (neg, pos) => (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0);
+
+// Steering in flight: she turns and climbs toward the mouse - how far it is
+// from the middle of the screen, across it and up or down it - or, on a
+// touch screen, toward where it is held, so holding a side steers that way.
+// The mouse counts only once it has moved in the flight, so wherever it was
+// left (on Start, say) does not throw her into a turn; a touch only while it
+// is down. A/D and W/S steer too.
+const STEER = { deadZone: 0.08, full: 0.7, rate: 5 }; // shares of half the screen; 1/s
+let pointerX = null; // -1 (left edge) .. 1 (right edge), or null
+let pointerY = 0; // -1 (top) .. 1 (bottom)
+const steerInput = { turn: 0, climb: 0 }; // eased; + is left, and up
+const pointAt = (e) => {
+  pointerX = (2 * e.clientX) / window.innerWidth - 1;
+  pointerY = (2 * e.clientY) / window.innerHeight - 1;
+};
+window.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'mouse' ? state === 'fly' : e.buttons) pointAt(e);
+});
+window.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'mouse' && state === 'fly') pointAt(e);
+});
+for (const type of ['pointerup', 'pointercancel']) {
+  window.addEventListener(type, (e) => {
+    if (e.pointerType !== 'mouse') pointerX = null;
+  });
+}
+document.documentElement.addEventListener('pointerleave', () => (pointerX = null));
+window.addEventListener('blur', () => (pointerX = null));
+
+// How hard to steer for a pointer `v` (-1..1) from the middle.
+function toward(v) {
+  const m = Math.min(Math.max((Math.abs(v) - STEER.deadZone) / (STEER.full - STEER.deadZone), 0), 1);
+  return Math.sign(v) * m * m * (3 - 2 * m);
+}
+
+function steering(dt) {
+  let turn = axis('KeyD', 'KeyA'); // A steers left
+  let climb = axis('KeyS', 'KeyW'); // W climbs
+  if (pointerX !== null) {
+    turn = -toward(pointerX);
+    climb = -toward(pointerY);
+  }
+  const k = 1 - Math.exp(-STEER.rate * dt);
+  steerInput.turn += (turn - steerInput.turn) * k;
+  steerInput.climb += (climb - steerInput.climb) * k;
+  // The controls show until she is first steered.
+  if (!steered && Math.max(Math.abs(turn), Math.abs(climb)) > 0.25) {
+    steered = true;
+    controlsEl.classList.remove('show');
+  }
+  return steerInput;
+}
 
 
 // ── Sequence: menu → approach → portrait → turn → dawn → backout → brink →
@@ -461,7 +538,7 @@ function startMenu() {
   hintEl.textContent = '';
   menuEl.classList.add('show');
   menuEl.setAttribute('aria-hidden', 'false');
-  startEl.focus({ preventScroll: true });
+  startEl.focus({ preventScroll: true, focusVisible: false });
   setState('menu');
 }
 
@@ -514,19 +591,6 @@ function snapshotCamera() {
   moveFrom.yaw = a.yaw;
   moveFrom.pitch = a.pitch;
   moveFrom.fov = camFov;
-}
-
-// A point on the Catmull-Rom curve from `a` through `b` (at u = 0.5) to `c`;
-// the caller's easing brings it to rest at either end.
-function spline(u, a, b, c, out) {
-  const seg = u < 0.5;
-  const t = seg ? u * 2 : u * 2 - 1;
-  const [p0, p1, p2, p3] = seg ? [a, a, b, c] : [a, b, c, c];
-  const t2 = t * t;
-  const t3 = t2 * t;
-  const k = (q0, q1, q2, q3) =>
-    0.5 * (2 * q1 + (q2 - q0) * t + (2 * q0 - 5 * q1 + 4 * q2 - q3) * t2 + (3 * q1 - q0 - 3 * q2 + q3) * t3);
-  return out.set(k(p0.x, p1.x, p2.x, p3.x), k(p0.y, p1.y, p2.y, p3.y), k(p0.z, p1.z, p2.z, p3.z));
 }
 
 // A point on the quadratic curve from moveFrom.pos through moveVia to `to`.
@@ -637,14 +701,44 @@ const besidePos = new Vec3(VIEW.beside.x, VIEW.beside.y, VIEW.beside.z);
 let moved = false; // whether she has gone from the tree to the edge
 let pulseTime = -1; // seconds into the pulse, or -1
 
+// The turn's arc: the quadratic curve from the shot's pose, bent toward
+// besidePos, to viewPos, and how far along it each of
+// `turnArc.length` even steps of distance comes, so the camera travels it at
+// one easing - no slowing as it passes her.
+const turnArc = new Float32Array(65);
+function measureTurnArc() {
+  moveVia.copy(besidePos);
+  const n = turnArc.length - 1;
+  const lengths = [0];
+  const prev = new Vec3().copy(moveFrom.pos);
+  for (let i = 1; i <= 4 * n; i++) {
+    curve(i / (4 * n), viewPos, tmpPos);
+    lengths.push(lengths[i - 1] + tmpPos.distance(prev));
+    prev.copy(tmpPos);
+  }
+  const total = lengths[4 * n];
+  for (let k = 0, i = 0; k <= n; k++) {
+    const want = (total * k) / n;
+    while (i < 4 * n && lengths[i + 1] < want) i++;
+    const seg = lengths[i + 1] - lengths[i];
+    turnArc[k] = (i + (seg > 0 ? (want - lengths[i]) / seg : 0)) / (4 * n);
+  }
+}
+// The curve's own parameter `share` of the way along the arc.
+function alongTurnArc(share) {
+  const f = Math.min(Math.max(share, 0), 1) * (turnArc.length - 1);
+  const k = Math.min(Math.floor(f), turnArc.length - 2);
+  return turnArc[k] + (turnArc[k + 1] - turnArc[k]) * (f - k);
+}
 function startTurn() {
-  // From the shot's own pose: the breathing and the look on her face carry
-  // on into the move and fade out along it.
+  // From the shot's own pose: the breathing carries on into the move and
+  // fades out along it, and the look starts where it was, on her face.
   moveFrom.pos.copy(creepDir).mulScalar(PORTRAIT.creep.metres).add(portraitPos);
   moveFrom.fov = camFov;
   const f = aim(camPos, faceLook);
   moveFrom.yaw = f.yaw;
   moveFrom.pitch = f.pitch;
+  measureTurnArc();
   timeOfDay.settleAt(goldenPhase, SKY.seconds);
   setState('turn');
 }
@@ -652,17 +746,12 @@ function startTurn() {
 function updateTurn(dt) {
   const t = Math.min(stateTime / VIEW.turnSeconds, 1);
   const u = smoother(t);
-  spline(u, moveFrom.pos, besidePos, viewPos, camPos).add(breathe(dt).mulScalar(1 - u));
-  // One sweep right - always right, past her face - to the sun. For its
-  // first moments it still follows her face, so it leaves the hold without
-  // a kink.
-  followFace(dt);
-  const f = aim(camPos, faceLook);
-  const hold = 1 - smooth(0, 0.3, u);
-  const w = u ** VIEW.lookLag;
+  curve(alongTurnArc(u), viewPos, camPos).add(breathe(dt).mulScalar(1 - u));
+  // One sweep right - always right, past her face - to the sun.
+  const w = smoother(Math.min(Math.max((t - VIEW.lookLag) / (1 - VIEW.lookLag), 0), 1));
   const right = -((((moveFrom.yaw - viewYaw) % 360) + 360) % 360);
-  const yaw = moveFrom.yaw + wrapDeg(f.yaw - moveFrom.yaw) * hold + right * w;
-  const pitch = moveFrom.pitch + (f.pitch - moveFrom.pitch) * hold + (VIEW.pitchDeg - moveFrom.pitch) * w;
+  const yaw = moveFrom.yaw + right * w;
+  const pitch = moveFrom.pitch + (VIEW.pitchDeg - moveFrom.pitch) * w;
   lookAlong(yaw, pitch);
   camFov = moveFrom.fov + (VIEW.fov - moveFrom.fov) * u;
   setGlow(SEAT.glow * (1 - u));
@@ -710,7 +799,9 @@ const screenTmp = new Vec3();
 function moveToBrink() {
   pos.copy(brink);
   headingDeg = BRINK.headingDeg;
-  character.playAnimation('brink', { loop: true });
+  // Quite still: vanish.glb held on its first frame until she goes.
+  character.playAnimation('vanish', { loop: false });
+  character.playbackSpeed = 0;
   moved = true;
 }
 
@@ -741,6 +832,37 @@ function updateHoldCamera(dt, { sway = 1 } = {}) {
 
 // How far vanish.glb has carried her from where it started, in the world.
 const vanishSeconds = (vanishPath.x.length - 1) * vanishPath.dt;
+// How fast the clip has her falling as it ends, and gathering pace.
+// The clip slows from `settleFrom` and comes to rest on its last frame
+// (a smoothstep's worth of time is half its length).
+const settleFrom = vanishSeconds - EDGE.settleSeconds / 2;
+// How fast the clip has her falling there, and gathering pace.
+const clipFall = (() => {
+  const y = vanishPath.y, i = Math.round(settleFrom / vanishPath.dt), h = 3 * vanishPath.dt;
+  return { speed: (y[i + 3] - y[i - 3]) / (2 * h), gravity: -(y[i + 3] - 2 * y[i] + y[i - 3]) / (h * h) };
+})();
+let clipTime = 0; // seconds into vanish.glb
+let fallTime = -1; // seconds since the clip began to slow, or -1
+let fallY = 0; // how far she has fallen since
+const fallAcross = new Vec3(); // her pace across the ground as the clip slows
+
+// Falling on: the pull gathers from the clip's own to fallGravity, and she
+// keeps to the line the clip had her on, going out as much faster as down.
+function fall(dt) {
+  const gather = smooth(0, EDGE.gatherSeconds, fallTime);
+  vel.y -= (clipFall.gravity + (EDGE.fallGravity - clipFall.gravity) * gather) * dt;
+  const k = vel.y / clipFall.speed;
+  vel.x = fallAcross.x * k;
+  vel.z = fallAcross.z * k;
+  fallTime += dt;
+}
+// How far the clip has brought her pelvis down by `t`.
+function vanishHeight(t) {
+  const f = Math.min(Math.max(t / vanishPath.dt, 0), vanishPath.y.length - 1);
+  const i = Math.min(Math.floor(f), vanishPath.y.length - 2);
+  return vanishPath.y[i] + (vanishPath.y[i + 1] - vanishPath.y[i]) * (f - i);
+}
+
 function vanishOffset(t, out) {
   const f = Math.min(Math.max(t / vanishPath.dt, 0), vanishPath.x.length - 1);
   const i = Math.min(Math.floor(f), vanishPath.x.length - 2);
@@ -804,26 +926,43 @@ function updateIslandSequence(dt) {
       rumble = smooth(0, BRINK.rumble.buildSeconds, stateTime);
       updateHoldCamera(dt);
       if (stateTime >= BRINK.waitSeconds) {
-        character.crossfadeTo('vanish', { duration: BRINK.vanishFade, loop: false });
+        character.playbackSpeed = 1;
         setState('vanish');
       }
       break;
 
     // Off the edge, carried along the clip's own travel; the clip drops her.
     case 'vanish': {
-      const t = Math.min(stateTime, vanishSeconds);
-      pos.copy(brink).add(vanishOffset(t, tmpPos));
+      if (stateTime < settleFrom) {
+        clipTime = stateTime;
+        pos.copy(brink).add(vanishOffset(clipTime, tmpPos));
+      } else {
+        if (fallTime < 0) {
+          // From here she falls on as the clip had her going: its pace
+          // over the tenth of a second before.
+          fallAcross.copy(vanishOffset(settleFrom, tmpVec)).sub(vanishOffset(settleFrom - 0.1, tmpPos)).mulScalar(10);
+          vel.copy(fallAcross);
+          vel.y = clipFall.speed;
+          clipTime = settleFrom;
+          fallTime = fallY = 0;
+        }
+        // The clip slows to rest; her height is the fall's, less what the
+        // clip still drops her pelvis by itself.
+        const rate = 1 - smooth(settleFrom, settleFrom + EDGE.settleSeconds, stateTime);
+        character.playbackSpeed = rate;
+        clipTime = Math.min(clipTime + rate * dt, vanishSeconds);
+        fall(dt);
+        pos.x += vel.x * dt;
+        pos.z += vel.z * dt;
+        fallY += vel.y * dt;
+        pos.y = brink.y + fallY - (vanishHeight(clipTime) - vanishHeight(settleFrom));
+      }
       updateHoldCamera(dt);
       if (stateTime >= EDGE.lipAt && stopTime < 0) {
         edge.copy(brink).add(vanishOffset(EDGE.lipAt, tmpPos));
         stopTime = 0;
       }
-      if (stateTime >= vanishSeconds) {
-        // Falling on as the clip left her: its last tenth of a second.
-        vel.copy(vanishOffset(vanishSeconds, tmpVec)).sub(vanishOffset(vanishSeconds - 0.1, tmpPos)).mulScalar(10);
-        vel.y = -3;
-        setState('drop');
-      }
+      if (stateTime >= settleFrom + EDGE.settleSeconds) setState('drop');
       break;
     }
 
@@ -831,9 +970,10 @@ function updateIslandSequence(dt) {
     case 'drop':
     case 'hold': {
       rumble *= Math.exp(-2.5 * dt);
-      vel.y -= EDGE.fallGravity * dt;
-      pos.add(tmpVec.copy(vel).mulScalar(dt));
-      pos.y = Math.max(pos.y, edge.y - 15);
+      if (pos.y > edge.y - 15) {
+        fall(dt);
+        pos.add(tmpVec.copy(vel).mulScalar(dt));
+      }
       if (state === 'drop') {
         updateHoldCamera(dt);
         if (stateTime >= EDGE.hiddenAfter) setState('hold');
@@ -929,6 +1069,10 @@ function updateLaunch(dt) {
     timeOfDay.update(dt);
     updateAir(dt);
   }
+  if (swapped) {
+    flightScenery.update(dt, flight, scene.cameraEntity);
+    flightAir.update(dt, flight, scene.cameraEntity);
+  }
 
   const camAlong = scene.cameraEntity.getPosition().dot(s.forward);
   const [r0, r1] = LAUNCH.revealMetres;
@@ -947,8 +1091,8 @@ function updateLaunch(dt) {
     flailAtFly = s.flail;
     flailClipAtFly = flailClip;
     confidence = 0;
-    s.altitude = s.pos.y;
-    hintEl.textContent = 'A/D bank';
+    s.altitude = s.baseAltitude = s.pos.y;
+    hintEl.textContent = '';
     document.body.classList.remove('cinema');
     setState('fly');
   }
@@ -964,17 +1108,21 @@ function updateFlash() {
 }
 
 function swapToSky() {
-  // The sky scene keeps the golden hour she left in.
-  const { intensity, color } = timeOfDay.grade;
+  // The sky scene keeps the golden hour she left in, to begin with.
+  skyGrade.intensity = timeOfDay.grade.intensity;
+  skyGrade.color = timeOfDay.grade.color;
+  skyGrade.time = 0;
+  skyGrade.clouds = -1;
   timeOfDay.disable();
-  sky.setTint(intensity * SKY_GRADE_SHARE, color);
-  character.setTint(intensity * 0.85, color);
+  updateSkyGrade(0);
   celestial.enabled = false;
   ambience.enabled = false;
   sanctuary.entity.enabled = false;
   sky.entity.enabled = true;
   sky.entity.setLocalEulerAngles(0, flight.state.headingDeg - SKY_VIEW_DEG, 0);
   skyAnchor.copy(flight.state.pos);
+  flightScenery.reset(flight);
+  flightAir.reset(flight);
   swapped = true;
   placeFlyer();
 }
@@ -989,18 +1137,115 @@ function startFlyDirect() {
   chaseCamera.snap(flight);
   windFx.enabled = true;
   windFx.reset(flight, scene.cameraEntity);
-  hintEl.textContent = 'A/D bank';
+  hintEl.textContent = '';
   setState('fly');
 }
 
+const skyGrade = { intensity: 0, color: null, time: 0, clouds: -1 };
+function updateSkyGrade(dt) {
+  const g = SKY_GRADE;
+  skyGrade.time += dt;
+  const settled = smooth(g.after, g.after + g.seconds, skyGrade.time);
+  const k = 1 - (1 - g.settle) * settled;
+  if (skyGrade.clouds !== settled) {
+    skyGrade.clouds = settled;
+    const { warm, sky: cool } = CLOUD_COLORS;
+    const mix = (a, b) => a.map((v, i) => v + (b[i] - v) * settled);
+    windFx.setColors(mix(warm.base, cool.base), mix(warm.top, cool.top));
+  }
+  sky.setTint(skyGrade.intensity * g.share * k, skyGrade.color);
+  character.setTint(skyGrade.intensity * g.herShare * k, skyGrade.color);
+}
+
+// A phone held upright gets index.html's #rotate over everything, and the
+// scene waits for it to be turned.
+const upright = matchMedia('(orientation: portrait) and (pointer: coarse)');
+const holdForUpright = () => { scene.app.timeScale = upright.matches ? 0 : 1; };
+upright.addEventListener('change', holdForUpright);
+holdForUpright();
+
 scene.app.on('update', (dt) => {
   stateTime += dt;
+  updateSkip(dt);
+  if (swapped) updateSkyGrade(dt);
   if (state === 'launch') updateLaunch(dt);
   else if (state === 'fly') updateFlight(dt);
   else updateIslandSequence(dt);
 });
 
+// ── Hold to skip ──────────────────────────────────────────────────────────
+
+// Holding any key or the pointer through a cutscene brings up "Hold to skip";
+// held for `holdSeconds` it cuts through black to the flight. Let go and the
+// ring drains, and the prompt lingers a moment before it goes.
+const SKIP = { holdSeconds: 1.2, lingerSeconds: 0.8, blackSeconds: 0.45 };
+const CUTSCENE = new Set(['approach', 'portrait', 'turn', 'dawn', 'backout', 'brink', 'vanish', 'drop', 'hold', 'launch']);
+let skipHeld = false;
+let skipHold = 0; // seconds held
+let skipLinger = 0;
+let skipping = false;
+
+function pressSkip(e) {
+  // Not a held-down key repeating, nor the press that started the story.
+  if (e.repeat || !CUTSCENE.has(state) || (state === 'approach' && stateTime === 0)) return;
+  skipHeld = true;
+}
+const releaseSkip = () => (skipHeld = false);
+window.addEventListener('keydown', pressSkip);
+window.addEventListener('pointerdown', pressSkip);
+for (const type of ['keyup', 'pointerup', 'pointercancel', 'blur']) window.addEventListener(type, releaseSkip);
+
+function updateSkip(dt) {
+  const on = skipHeld && CUTSCENE.has(state) && !skipping;
+  skipHold = on ? skipHold + dt : Math.max(skipHold - 3 * dt, 0);
+  skipLinger = on ? SKIP.lingerSeconds : Math.max(skipLinger - dt, 0);
+  skipEl.classList.toggle('show', on || (skipLinger > 0 && !skipping));
+  skipEl.style.setProperty('--p', Math.min(skipHold / SKIP.holdSeconds, 1).toFixed(3));
+  if (on && skipHold >= SKIP.holdSeconds) skipToFlight();
+}
+
+function skipToFlight() {
+  skipping = true;
+  skipHeld = false;
+  curtainEl.classList.add('quick');
+  curtainEl.classList.remove('up');
+  setTimeout(() => {
+    // Whatever the story was doing, put it away.
+    pulse.amount = 0;
+    pulseTime = -1;
+    rumble = 0;
+    fadeEl.style.opacity = 0;
+    flashing = false;
+    if (flailClip > 0) setFlailClip(0);
+    flailAtFly = flailClipAtFly = confidence = 0;
+    character.setLayers([LAYERID_WORLD]);
+    onOwnLayer = true;
+    document.body.classList.remove('cinema');
+    if (!swapped) {
+      // So the sky takes on the golden hour, whenever it was cut short.
+      setGlow(0);
+      timeOfDay.setPhase(goldenPhase);
+    }
+    windFx.visibility = 1;
+    startFlyDirect();
+    skipHold = 0;
+    skipping = false;
+    curtainEl.classList.remove('quick');
+    curtainEl.classList.add('up');
+  }, SKIP.blackSeconds * 1000);
+}
+
 // ── Flight ────────────────────────────────────────────────────────────────
+
+// After the area's title, unless she has been steered already.
+let steered = false;
+let controlsShown = false;
+function showControls() {
+  controlsShown = true;
+  if (steered) return;
+  controlsEl.classList.add('show');
+  controlsEl.setAttribute('aria-hidden', 'false');
+}
 
 let areaShown = false;
 function showAreaTitle() {
@@ -1012,16 +1257,19 @@ function showAreaTitle() {
 
 function updateFlight(dt) {
   if (!areaShown && stateTime >= AREA_TITLE.after) showAreaTitle();
-  const turn = axis('KeyD', 'KeyA'); // A banks left
-  confidence += dt * (1 + LAUNCH.steerConfidence * Math.abs(turn));
+  if (!controlsShown && stateTime >= AREA_TITLE.after + AREA_TITLE.seconds - AREA_TITLE.controlsBefore) showControls();
+  const { turn, climb } = steering(dt);
+  confidence += dt * (1 + LAUNCH.steerConfidence * Math.max(Math.abs(turn), Math.abs(climb)));
   const shaky = 1 - smooth(0, LAUNCH.confidenceSeconds, confidence);
   flight.state.flail = flailAtFly * shaky;
   if (flailClip > 0) setFlailClip(flailClipAtFly * shaky);
-  flight.update(dt, { turn });
+  flight.update(dt, { turn, climb });
   placeFlyer();
   flightRig.update(dt, flight);
   chaseCamera.update(dt, flight);
   windFx.update(dt, flight, scene.cameraEntity);
+  flightScenery.update(dt, flight, scene.cameraEntity);
+  flightAir.update(dt, flight, scene.cameraEntity);
   if (flashing) updateFlash();
 }
 
@@ -1055,6 +1303,8 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
     flight,
     character,
     windFx,
+    flightScenery,
+    flightAir,
     timeOfDay,
     celestial,
     ambience,
@@ -1076,3 +1326,5 @@ else {
   startMenu();
   if (query.get('start') === '1') startAwakening();
 }
+// Lift the curtain once a couple of frames have drawn her posed in place.
+scene.app.once('postrender', () => scene.app.once('postrender', () => curtainEl.classList.add('up')));
