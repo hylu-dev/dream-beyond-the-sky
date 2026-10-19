@@ -37,6 +37,14 @@ export const SOUNDS = {
   'cliff-pass': { gain: 0.7, variants: 3 },
   // The hardest hit in the game; it ducks everything else (see play()).
   'cliff-impact': { gain: 1.5, duck: { to: 0.2, hold: 0.5, release: 2.5 } },
+  // Her breath as she wakes under the tree.
+  'wake-gasp': { gain: 0.8 },
+  'wake-pant': { gain: 0.6 },
+  'wake-breath': { gain: 0.55 },
+  'wake-exhale': { gain: 0.55 },
+  'wake-slide': { gain: 0.35, variants: 2 }, // her back down the trunk, soft
+  'wake-settle': { gain: 0.4 }, // her last breath out, sliding down
+  'wake-sigh': { gain: 0.7, variants: 5 },
   'birds-distant': { gain: 0.3, variants: 2 },
 };
 
@@ -109,6 +117,7 @@ export function createAudio(options = {}) {
   let unlocked = false;
   let held = false;
   const cuttable = new Set(); // one-shots cut() fades out
+  const sounding = {}; // name -> one-shots of it still sounding, for stop()
 
   return {
     ctx,
@@ -137,11 +146,11 @@ export function createAudio(options = {}) {
     },
 
     // A one-shot: `gain` 0..1 of its own, `pan` -1 (left) .. 1, `delay`
-    // seconds. `cut` ones are a cut-scene's, and go with cut(). A sound
+    // seconds, from `offset` seconds into it. `cut` ones are a cut-scene's, and go with cut(). A sound
     // with `duck` ({ to, hold, release }) drops everything else to `to` of
     // its level as it strikes, holds it `hold` seconds and lets it back over
     // about `release`.
-    play(name, { gain = 1, pan = 0, delay = 0, cut = false } = {}) {
+    play(name, { gain = 1, pan = 0, delay = 0, offset = 0, cut = false } = {}) {
       const list = buffers[name];
       if (!unlocked || held || !list) return;
       const src = ctx.createBufferSource();
@@ -162,12 +171,25 @@ export function createAudio(options = {}) {
         rest.gain.setTargetAtTime(duck.to, at, 0.01);
         rest.gain.setTargetAtTime(1, at + duck.hold, duck.release / 3);
       }
-      src.start(at);
-      if (cut) {
-        const shot = { src, g };
-        cuttable.add(shot);
-        src.onended = () => cuttable.delete(shot);
+      src.start(at, offset);
+      const shot = { src, g };
+      (sounding[name] ??= new Set()).add(shot);
+      if (cut) cuttable.add(shot);
+      src.onended = () => {
+        sounding[name].delete(shot);
+        cuttable.delete(shot);
+      };
+    },
+
+    // Fade out one sound's one-shots still sounding.
+    stop(name, seconds = 0.3) {
+      const now = ctx.currentTime;
+      for (const shot of sounding[name] ?? []) {
+        shot.g.gain.setTargetAtTime(0, now, seconds / 3);
+        shot.src.stop(now + seconds);
+        cuttable.delete(shot);
       }
+      sounding[name]?.clear();
     },
 
     // Fade out the cut-scene's one-shots still sounding.

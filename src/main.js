@@ -299,28 +299,69 @@ const CRASH_AFTER = Number(new URLSearchParams(location.search).get('crash')) ||
 const CRASH = { clearMargin: 40 };
 let crashNow = new URLSearchParams(location.search).get('impact') === '1';
 
-// The fall was a dream. It cuts to black and she is back under the tree at
-// night, where she dozed. The black opens from the middle on a world all blur
-// that slowly clears, on her face, close on a long lens, as she breathes deep (breathe.glb,
-// PINOC "Deep Breathing": down in a low wide stance, rising, gathering her
-// breath to her belly and letting it go). The camera keeps on her face as she
-// rises, and slowly backs out; then it cuts to her whole, from in front, and
-// for the deep breath at the end of it, in low on her, from her side, looking
-// up; and she settles into standing.
+// The fall was a dream. It cuts to black and she is back under the tree,
+// where she dozed, in the golden hour she left it in. The black opens from the middle, fluttering open as
+// eyes do, on a world all blur that slowly clears, on her face, close on a
+// long lens, as she breathes deep (breathe.glb, PINOC "Deep Breathing": down
+// in a low wide stance, rising, gathering her breath to her belly and letting
+// it go). The camera starts tight on her face and dollies slowly back; then
+// it cuts high and far off, looking down on her whole as she feels herself
+// over; and for the deep breath at the end, in low on her, from her side,
+// looking up. Then she sighs with relief and sinks back to sit against the
+// tree (sigh.glb, PINOC "Sigh Relief"), and stays there, as in one move the
+// camera backs out and round her, keeping her whole in it as she settles,
+// turns off her to look out as the golden hour sinks back into the night -
+// she is back in the doze she started in meanwhile - and comes on round
+// into the menu's frame of her; and the menu is back, to start again.
 const WAKE_UP = {
-  lids: [[0.15, 1], [0.85, 0]], // [seconds, shut], eased between: opening once
+  // [seconds, shut], eased between: opening, falling half shut, opening
+  // further, a last flicker, and open.
+  lids: [[0.15, 1], [0.5, 0.55], [0.75, 0.9], [1.15, 0.3], [1.4, 0.6], [2.1, 0]],
   blur: { px: 10, seconds: 4.5 },
-  close: { metres: 3.1, side: 0.2, up: -0.02, fov: 10 },
-  faceHeight: 2, // over her feet, as the clip starts
-  backOut: { from: 1.4, seconds: 6.5, metres: 1.3, rise: 0.12, fov: 24 },
-  wideAt: 7.4, // seconds in, cut to her whole
-  wide: { position: { x: 0.25, y: 2.05, z: -1.1 }, lookUp: 0.92, fov: 30, wander: 0.08 },
-  endAt: 9.4, // seconds in, cut in for the deep breath
+  // The world without colour as her eyes open, the colour coming back into
+  // it from `from` to `to` seconds in.
+  gray: { from: 1.4, to: 4.6 },
+  // On so long a lens the clip played in place - her head sinking and rising
+  // 6 cm a breath, and 9 cm in a fifth of a second as she straightens at
+  // 4.6 s, where it has her hips lunge forward - would carry her face up to
+  // a third of the frame up and down: so the camera rises and sinks with her
+  // face, and looks level at it. Her head as her bones last left it is a
+  // frame behind, so it goes `lead` frames on at its own pace. Across, the
+  // camera keeps to the slow average of her head, `steady` per second. It is
+  // held `handheld` as unsteadily as the portrait.
+  close: { metres: 1.9, side: 0.12, up: -0.02, fov: 8, steady: 0.6, lead: 1, handheld: 0.4 },
+  faceHeight: 1.4, // over her feet, as the clip starts
+  backOut: { from: 0.3, seconds: 4.9, metres: 1.1, rise: 0.06, fov: 12 },
+  wideAt: 5.2, // seconds in, cut to high and far
   // Metres ahead of her and to her right (- left) of where she stands, its
-  // height over her feet, how far under her face it looks, and how far it
-  // pushes in over the shot.
-  end: { ahead: 2.3, side: -1.2, height: 1.15, lookDown: 0.3, fov: 30, push: 0.35, seconds: 5 },
-  idleAt: 12, // into the standing idle as the clip ends
+  // height over her feet, and how high on her it looks; drifting in `drift`
+  // metres over the shot.
+  wide: { ahead: 7, side: 2.2, height: 4.2, lookUp: 0.8, fov: 30, drift: 0.5 },
+  endAt: 9.2, // seconds in, cut in for the deep breath
+  // As `wide`, and how far under her face it looks; pushing in `push`
+  // metres until it backs out.
+  end: { ahead: 2.3, side: -1.2, height: 1.15, lookDown: 0.3, fov: 30, push: 0.25 },
+  // Seconds in; she holds its last frame. Her back slides down the trunk
+  // `slide` seconds into it.
+  sigh: { at: 11.2, fade: 0.8, slide: 2.7 },
+  // Out from her and round into the menu's frame, in one move that never
+  // stops: from `at` seconds in, over `seconds`, easing in over `accel` and
+  // out over `decel`, it curves back and round her toward `via` - degrees
+  // round from straight ahead of her (to her right), metres out and up,
+  // and its fov - and on into the menu's shot. Its look goes from under her
+  // face onto her whole as she sinks, `frame` seconds in; turns `away.deg`
+  // off her (- right) to look out `away.pitchDeg` up over `away.turn`; and
+  // comes round onto the menu's over `back`. She is back in the doze at
+  // `dozeAt`, out of frame; the bars go at `bars`. Over `night` the golden
+  // hour sinks back to the menu's night: the sun down to `downTo` degrees
+  // over `sinking` of it, the night deepening after. The menu comes up
+  // `menuAt` of the way.
+  home: {
+    at: 10.6, seconds: 18, accel: 2, decel: 4.5,
+    via: { angle: 0, radius: 3.6, height: 0.6, fov: 46 },
+    frame: [2.6, 4.4], away: { deg: -65, pitchDeg: 6, turn: [5, 9.5] }, back: [8.5, 18],
+    dozeAt: 9, bars: 9.5, night: [9.5, 15.5], downTo: -12, sinking: 0.65, menuAt: 0.8,
+  },
 };
 
 // ── Setup ───────────────────────────────────────────────────────────────────
@@ -366,6 +407,7 @@ const [sanctuary, sky, character, cliffAssets] = await Promise.all([
   Animation.loadGlb(scene, assetUrl('anims/impact.glb'), 'impact'),
   Animation.loadGlb(scene, assetUrl('anims/limpfall.glb'), 'limpfall'),
   Animation.loadGlb(scene, assetUrl('anims/breathe.glb'), 'breathe'),
+  Animation.loadGlb(scene, assetUrl('anims/sigh.glb'), 'sigh'),
 ]);
 sky.entity.enabled = false;
 const vanishPath = await (await fetch(assetUrl('anims/vanish.path.json'))).json();
@@ -398,10 +440,6 @@ const BODY_MASK = {
 
 const flight = createFlight({ headingDeg: EDGE.headingDeg });
 const flightRig = createFlightRig(character);
-// Her hands lifted clear of her trousers while she sits under the tree,
-// until she is moved to the edge under the pulse's flash.
-const SEATED = new Set(['menu', 'approach', 'portrait', 'turn', 'dawn']);
-const seatPose = createSeatPose(character, { seated: () => !moved && SEATED.has(state) });
 const chaseCamera = createChaseCamera(scene.cameraEntity);
 const launchShot = createLaunchShot(scene.cameraEntity, chaseCamera);
 // The near clouds in the golden hour she leaves the island in: a dusky rose
@@ -638,29 +676,42 @@ function startMenu() {
   timeOfDay.setSpeed(0);
   setGlow(SEAT.glow);
   updateMenuCamera(0);
-  hintEl.textContent = '';
-  menuEl.classList.add('show');
-  menuEl.setAttribute('aria-hidden', 'false');
-  startEl.focus({ preventScroll: true, focusVisible: false });
+  showMenu();
   setState('menu');
 }
 
-function updateMenuCamera(dt) {
+function showMenu() {
+  hintEl.textContent = '';
+  menuEl.classList.remove('leaving');
+  menuEl.classList.add('show');
+  menuEl.setAttribute('aria-hidden', 'false');
+  startEl.focus({ preventScroll: true, focusVisible: false });
+}
+
+// Where the menu camera stands (menuCam) and looks, `menuTime` in.
+const menuCam = new Vec3();
+function menuPose() {
   const m = MENU_CAMERA;
-  menuTime += dt;
   const w = m.wander;
   const t = menuTime / w.seconds;
-  camPos.set(
+  menuCam.set(
     m.position.x + fbm1(t, 61) * w.metres[0],
     m.position.y + fbm1(t, 62) * w.metres[1],
     m.position.z + fbm1(t, 63) * w.metres[2],
   );
-  const a = aim(camPos, tmpVec.set(seat.x, seat.y + m.lookUp, seat.z));
+  const a = aim(menuCam, tmpVec.set(seat.x, seat.y + m.lookUp, seat.z));
   const turn = m.turnDeg.amount * Math.sin((2 * Math.PI * menuTime) / m.turnDeg.seconds);
   // Turned right of her, so she sits left of the menu.
-  lookAlong(a.yaw - m.offsetDeg + turn, a.pitch);
-  camFov = m.fov;
-  applyCamera(dt, m.sway);
+  return { yaw: a.yaw - m.offsetDeg + turn, pitch: a.pitch };
+}
+
+function updateMenuCamera(dt) {
+  menuTime += dt;
+  const p = menuPose();
+  camPos.copy(menuCam);
+  lookAlong(p.yaw, p.pitch);
+  camFov = MENU_CAMERA.fov;
+  applyCamera(dt, MENU_CAMERA.sway);
 }
 
 // The fireflies' light on her, and the night lifted off her with it.
@@ -805,6 +856,11 @@ const backPos = new Vec3().copy(viewDir).mulScalar(-BACK_OUT.metres).add(viewPos
 backPos.y -= BACK_OUT.drop;
 const besidePos = new Vec3(VIEW.beside.x, VIEW.beside.y, VIEW.beside.z);
 let moved = false; // whether she has gone from the tree to the edge
+// Her hands lifted clear of her trousers while she sits under the tree,
+// until she is moved to the edge under the pulse's flash. Made here, once
+// what it reads is declared.
+const SEATED = new Set(['menu', 'approach', 'portrait', 'turn', 'dawn']);
+const seatPose = createSeatPose(character, { seated: () => !moved && (SEATED.has(state) || dozing) });
 let pulseTime = -1; // seconds into the pulse, or -1
 
 // The turn's arc: the quadratic curve from the shot's pose, bent toward
@@ -995,10 +1051,12 @@ function updateAir(dt) {
   const el = timeOfDay.sunElevation;
   const camera = scene.cameraEntity;
   celestial.update(dt, camera);
-  const early = ['menu', 'approach', 'portrait', 'woken', 'wokenWide', 'wokenEnd'].includes(state);
+  // Back under the tree after the fall, they come out with the night.
+  const woken = ['woken', 'wokenWide', 'wokenEnd', 'homeward'].includes(state);
+  const early = ['menu', 'approach', 'portrait'].includes(state) || woken;
   const goneBy = PORTRAIT.panAt - SCATTER.before;
   const going = state === 'portrait' && wakeTime >= 0 ? smooth(goneBy - SCATTER.seconds, goneBy, wakeTime) : 0;
-  const fireflies = early ? 1 - going : 0;
+  const fireflies = woken ? smooth(3, -10, el) : early ? 1 - going : 0;
   const drift = early ? 1 - going : state === 'turn' ? 0 : state === 'dawn' ? smooth(0, SCATTER.returnSeconds, stateTime) : 1;
   ambience.update(dt, camera, { night: smooth(3, -10, el), light: smooth(-6, 10, el), wind: gusty, windDir, fireflies, drift });
   fireflyLight.update();
@@ -1052,6 +1110,10 @@ function updateIslandSequence(dt) {
 
     case 'wokenEnd':
       updateWokenEnd(dt);
+      break;
+
+    case 'homeward':
+      updateHomeward(dt);
       break;
 
     // On the edge, her back to us; the rumble builds, and she goes.
@@ -1509,21 +1571,35 @@ function updateCrash(dt) {
 const wakeSide = new Vec3(-faceDir.z, 0, faceDir.x); // her right
 let wokeTime = 0;
 let wakeSnap = 0; // frames left to put the look straight on her face
-let idled = false;
+const faceSteady = new Vec3(); // her face, slowly averaged
+let faceY = 0; // her face's height, held
+let faceLastY = 0; // as her bones last left it
+let sighed = false;
+let dozing = false;
+let menuBack = false;
+// Her breath as she wakes, [seconds in, sound]: the gasp as her eyes open,
+// panting until she breathes in, held, and out (no sigh) as she leans back,
+// and her back down the trunk with a last soft breath out.
+const WAKE_SOUNDS = [
+  [0.15, 'wake-gasp'], [0.7, 'wake-pant'], [WAKE_UP.endAt, 'wake-breath'],
+  [WAKE_UP.sigh.at, 'wake-exhale'], [WAKE_UP.sigh.at + WAKE_UP.sigh.slide, 'wake-slide'],
+  [WAKE_UP.sigh.at + WAKE_UP.sigh.slide + 0.1, 'wake-settle'],
+];
+let wakeSound = 0; // the next of them
 
 function wakeUp() {
   crash.finish();
-  // The island at night again, and none of the sky.
+  // The island in the golden hour again, and none of the sky.
   sky.entity.enabled = false;
   for (const layer of [windFx, skyClouds, flightCliffs, flightScenery, flightAir]) layer.enabled = false;
   sanctuary.entity.enabled = true;
   swapped = false;
   timeOfDay.enable();
-  timeOfDay.setPhase(SKY.menuPhase);
+  timeOfDay.setPhase(goldenPhase);
   timeOfDay.setSpeed(0);
   celestial.enabled = true;
   ambience.enabled = true;
-  setGlow(SEAT.glow);
+  setGlow(0);
   // Her, standing where she dozed.
   flightRig.enabled = false;
   character.stopLayer('flail');
@@ -1538,10 +1614,22 @@ function wakeUp() {
   // the sky: so the look starts where her face will be, and goes onto it
   // once they have caught up.
   faceLook.set(seat.x + faceDir.x * 0.1, seat.y + WAKE_UP.faceHeight, seat.z + faceDir.z * 0.1);
+  faceSteady.copy(faceLook);
+  faceY = faceLastY = faceLook.y;
   wakeSnap = 3;
-  idled = false;
+  sighed = dozing = menuBack = false;
+  wakeSound = 0;
+  moved = false; // back at the tree
   setLids(1);
   setState('woken');
+}
+
+function breatheAwake() {
+  while (wakeSound < WAKE_SOUNDS.length && wokeTime >= WAKE_SOUNDS[wakeSound][0]) {
+    const name = WAKE_SOUNDS[wakeSound++][1];
+    if (name === 'wake-breath') audio.stop('wake-pant', 0.6); // caught
+    audio.play(name, { cut: true });
+  }
 }
 
 // Her eyes opening, and the world slowly coming into focus.
@@ -1552,7 +1640,9 @@ function openEyes() {
   const [t0, a] = keys[i], [t1, b] = keys[i + 1];
   setLids(a + (b - a) * smooth(t0, t1, wokeTime));
   const blur = WAKE_UP.blur.px * (1 - smooth(0, WAKE_UP.blur.seconds, wokeTime));
-  canvas.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : '';
+  const gray = 1 - smooth(WAKE_UP.gray.from, WAKE_UP.gray.to, wokeTime);
+  const filter = [gray > 0.005 && `grayscale(${gray.toFixed(3)})`, blur > 0.05 && `blur(${blur.toFixed(2)}px)`];
+  canvas.style.filter = filter.filter(Boolean).join(' ');
 }
 
 // Close on her face, following it, and backing slowly out.
@@ -1563,62 +1653,155 @@ function updateWoken(dt) {
     if (wakeSnap > 0) {
       wakeSnap--;
       faceLook.copy(lookGoal);
+      faceSteady.copy(lookGoal);
+      faceY = faceLastY = lookGoal.y;
     } else {
       followFace(dt);
+      faceY = lookGoal.y + (lookGoal.y - faceLastY) * c.lead;
+      faceLastY = lookGoal.y;
     }
   }
+  faceSteady.lerp(faceSteady, faceLook, 1 - Math.exp(-c.steady * dt));
   const out = smoother(Math.min(Math.max((wokeTime - b.from) / b.seconds, 0), 1));
-  camPos.copy(faceDir).mulScalar(c.metres + b.metres * out).add(faceLook).add(tmpVec.copy(wakeSide).mulScalar(c.side));
-  camPos.y = faceLook.y + c.up + b.rise * out;
-  camPos.add(breathe(dt));
-  const f = aim(camPos, faceLook);
+  camPos.copy(faceDir).mulScalar(c.metres + b.metres * out).add(faceSteady).add(tmpVec.copy(wakeSide).mulScalar(c.side));
+  camPos.y = faceY + c.up + b.rise * out;
+  camPos.add(breathe(dt).mulScalar(c.handheld));
+  tmpPos.copy(faceLook);
+  tmpPos.y = faceY;
+  const f = aim(camPos, tmpPos);
   lookAlong(f.yaw, f.pitch);
   camFov = c.fov + (b.fov - c.fov) * out;
   applyCamera(dt, VIEW.sway);
   openEyes();
+  breatheAwake();
   if (wokeTime >= w.wideAt) setState('wokenWide');
 }
 
-// Her whole, from in front, for the rest of it.
+// High and far off, looking down on her whole, drifting in.
 function updateWokenWide(dt) {
   const w = WAKE_UP.wide;
   wokeTime += dt;
-  const t = wokeTime / MENU_CAMERA.wander.seconds;
-  camPos.set(w.position.x + fbm1(t, 61) * w.wander, w.position.y + fbm1(t, 62) * w.wander * 0.3, w.position.z + fbm1(t, 63) * w.wander);
+  const u = smoother(Math.min((wokeTime - WAKE_UP.wideAt) / (WAKE_UP.endAt - WAKE_UP.wideAt), 1));
+  camPos.copy(faceDir).mulScalar(w.ahead - w.drift * u).add(seat).add(tmpVec.copy(wakeSide).mulScalar(w.side));
+  camPos.y = seat.y + w.height;
   const a = aim(camPos, tmpVec.set(seat.x, seat.y + w.lookUp, seat.z));
   lookAlong(a.yaw, a.pitch);
   camFov = w.fov;
   applyCamera(dt, MENU_CAMERA.sway);
   settle();
-  if (wokeTime >= WAKE_UP.endAt) {
-    endFrom = wokeTime;
-    setState('wokenEnd');
-  }
+  if (wokeTime >= WAKE_UP.endAt) setState('wokenEnd');
 }
 
 // In low from her side for the deep breath, pushing slowly in.
-let endFrom = 0;
+const endPos = new Vec3(); // the shot's own pose, before the breathing
 function updateWokenEnd(dt) {
   const e = WAKE_UP.end;
   wokeTime += dt;
   followFace(dt);
-  const push = smoother(Math.min((wokeTime - endFrom) / e.seconds, 1)) * e.push;
-  camPos.copy(faceDir).mulScalar(e.ahead - push).add(seat).add(tmpVec.copy(wakeSide).mulScalar(e.side));
-  camPos.y = seat.y + e.height;
-  camPos.add(breathe(dt));
+  const push = smoother(Math.min((wokeTime - WAKE_UP.endAt) / (WAKE_UP.home.at - WAKE_UP.endAt), 1)) * e.push;
+  endPos.copy(faceDir).mulScalar(e.ahead - push).add(seat).add(tmpVec.copy(wakeSide).mulScalar(e.side));
+  endPos.y = seat.y + e.height;
+  camPos.copy(endPos).add(breathe(dt));
   const a = aim(camPos, tmpVec.copy(faceLook).sub(tmpPos.set(0, e.lookDown, 0)));
   lookAlong(a.yaw, a.pitch);
   camFov = e.fov;
-  applyCamera(dt, VIEW.sway);
+  applyCamera(dt, MENU_CAMERA.sway);
   settle();
+  if (wokeTime >= WAKE_UP.home.at) {
+    homeFrom = around(endPos);
+    setState('homeward');
+  }
 }
 
-// Into the standing idle as the clip ends.
+// As the breath ends, the sigh, back against the tree.
 function settle() {
-  if (!idled && wokeTime >= WAKE_UP.idleAt) {
-    idled = true;
-    character.crossfadeTo('idle', { duration: 1.5, loop: true });
+  breatheAwake();
+  if (!sighed && wokeTime >= WAKE_UP.sigh.at) {
+    sighed = true;
+    character.crossfadeTo('sigh', { duration: WAKE_UP.sigh.fade, loop: false });
   }
+}
+
+// Where `p` is round her seat: degrees round from straight ahead of her (to
+// her right), metres out and metres up.
+function around(p) {
+  tmpVec.copy(p).sub(seat);
+  const ahead = tmpVec.dot(faceDir), right = tmpVec.dot(wakeSide);
+  return { angle: Math.atan2(right, ahead) / DEG, radius: Math.hypot(ahead, right), height: tmpVec.y };
+}
+
+// How far along a move of `seconds` it is at `t` (0..1): easing in over
+// `accel` seconds, at one speed, and easing out over `decel`.
+function glide(t, seconds, accel, decel) {
+  const v = 1 / (seconds - accel / 2 - decel / 2);
+  if (t <= 0) return 0;
+  if (t < accel) return (v * t * t) / (2 * accel);
+  if (t < seconds - decel) return v * (accel / 2 + t - accel);
+  if (t < seconds) return 1 - (v * (seconds - t) ** 2) / (2 * decel);
+  return 1;
+}
+
+// In one move from the side shot, never stopping: backing out and round
+// her, keeping her whole in it as she sighs and sinks back against the
+// tree; turning off her to look out as the golden hour goes down into the
+// night; and coming round into the menu's frame of her, the menu coming up.
+let homeFrom = { angle: 0, radius: 0, height: 0 };
+const homeLook = new Vec3();
+const duskPhase = timeOfDay.phaseAtElevation(WAKE_UP.home.downTo);
+const curve3 = (a, b, c, s) => (1 - s) ** 2 * a + 2 * (1 - s) * s * b + s * s * c;
+function updateHomeward(dt) {
+  const h = WAKE_UP.home, t = stateTime;
+  wokeTime += dt;
+  menuTime += dt;
+  settle();
+  followFace(dt);
+  const m = menuPose();
+  const to = around(menuCam);
+  // Along a curve from the side shot, bent out toward `via`, into the menu's.
+  const s = glide(t, h.seconds, h.accel, h.decel);
+  const angle = curve3(homeFrom.angle, h.via.angle, to.angle, s) * DEG;
+  const radius = curve3(homeFrom.radius, h.via.radius, to.radius, s);
+  camPos.copy(faceDir).mulScalar(Math.cos(angle) * radius).add(tmpVec.copy(wakeSide).mulScalar(Math.sin(angle) * radius)).add(seat);
+  camPos.y = seat.y + curve3(homeFrom.height, h.via.height, to.height, s);
+  camPos.add(breathe(dt).mulScalar(1 - smooth(0, 4, t)));
+  camFov = curve3(WAKE_UP.end.fov, h.via.fov, MENU_CAMERA.fov, s);
+  // From under her face onto her whole, halfway from her face to her feet,
+  // as she sinks; off her to look out; and round onto the menu's look.
+  homeLook.copy(faceLook).sub(tmpPos.set(0, WAKE_UP.end.lookDown, 0));
+  homeLook.lerp(homeLook, tmpPos.copy(faceLook).add(seat).mulScalar(0.5), smooth(h.frame[0], h.frame[1], t));
+  const a = aim(camPos, homeLook);
+  const away = smooth(h.away.turn[0], h.away.turn[1], t);
+  const back = smoother(Math.min(Math.max((t - h.back[0]) / (h.back[1] - h.back[0]), 0), 1));
+  const yaw = a.yaw + h.away.deg * away, pitch = a.pitch + (h.away.pitchDeg - a.pitch) * away;
+  lookAlong(lerpDeg(yaw, m.yaw, back), pitch + (m.pitch - pitch) * back);
+  applyCamera(dt, MENU_CAMERA.sway);
+  // Back in the doze, out of frame.
+  if (!dozing && t >= h.dozeAt) {
+    dozing = true;
+    character.playAnimation('doze', { loop: true });
+  }
+  if (t >= h.bars) document.body.classList.remove('cinema');
+  // The sun sinking back below the sea of cloud, into the night, and the
+  // fireflies' light coming up on her with it.
+  const x = Math.min(Math.max((t - h.night[0]) / (h.night[1] - h.night[0]), 0), 1);
+  const sinking = smooth(0, h.sinking, x), deepening = smooth(h.sinking, 1, x);
+  timeOfDay.setPhase(deepening > 0
+    ? duskPhase + (SKY.menuPhase - duskPhase) * deepening
+    : timeOfDay.phaseAtElevation(SKY.goldenElevation + (h.downTo - SKY.goldenElevation) * sinking));
+  setGlow(SEAT.glow * smoother(x));
+  if (!menuBack && s >= h.menuAt) {
+    menuBack = true;
+    showMenu();
+  }
+  if (t >= h.seconds) backToMenu();
+}
+
+// Where it all began, and the story set to run again from Start.
+function backToMenu() {
+  wakeTime = pulseTime = stopTime = fallTime = -1;
+  clipTime = fallY = rumble = 0;
+  canvas.style.filter = '';
+  setState('menu');
 }
 
 // How much the flail clip drives her over the glide pose, 0..1.

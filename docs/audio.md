@@ -31,6 +31,10 @@ Beds loop under the scene, at a level from 0 to 1 that the game sets every frame
 | `cliff-pass` ×3 | one-shot | A cliff passing within 16 m (`flightCliffs` `onPass`), panned to its side, timed so its peak arrives as she draws level |
 | `birds-distant` ×2 | one-shot | A flock within 70 m calls every 6–16 s, panned to its side |
 | `cliff-impact` | one-shot | Her blow against the cliff in the crash ending (`src/crash.js`), the hardest hit in the game, built as one blow. Every layer starts on its attack, and the foley is cut short before anything in it could read as a second hit. A punch and a synthesized kick make the blow; a body thud and a stone crunch make it a body against rock, on any speaker; a trailer boom, a sub drop and a rumble rolling away give it weight. The mix is lightly saturated in a short dark space, and it ducks everything else while it strikes |
+| `wake-gasp` | one-shot | She jolts awake under the tree after the fall: one frightened gasp as her lids first open, 0.15 s in. Close and dry, breath only |
+| `wake-pant` | one-shot | From 0.7 s in, her ragged panting, slowing as she calms. It fades out as the deep breath starts |
+| `wake-breath` | one-shot | The deep breath, on the cut in at `WAKE_UP.endAt`: the inhale of one slow breath |
+| `wake-sigh` | one-shot | Her sigh as she sinks back against the tree, with the sigh clip at `WAKE_UP.sigh.at`: the exhale of a sigh of relief, which finishes the deep breath |
 
 Sounds marked ×N have N takes. Each time, one is picked at random. The sound pauses while the scene waits for a phone to be turned, and while the page is hidden.
 

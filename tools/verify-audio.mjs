@@ -145,6 +145,10 @@ const rest = night[0][3].targets[0].targets[0].targets[0];
 const [down, up] = rest.gain.targets ?? [];
 check(impact.targets[0].targets[0] === rest.targets[0], 'the cliff impact goes round the duck');
 check(down?.v === duck.to && up?.v === 1 && Math.abs(up.t - down.t - duck.hold) < 1e-6, 'and ducks the rest, holds and lets it back');
+audio.play('launch');
+const launch = starts().at(-1)[3];
+audio.stop('launch', 0.2);
+check(Math.abs(launch.stopAt - (ctx.currentTime + 0.2)) < 1e-6, 'stop() stops one sound by name');
 audio.play('bank-whoosh');
 check(/^bank-whoosh-[123]$/.test(starts().at(-1)[1]), 'a sound with variants plays one of them');
 

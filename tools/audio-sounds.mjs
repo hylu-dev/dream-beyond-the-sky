@@ -191,4 +191,47 @@ export const SOUNDS = [
     name: 'birds-distant', seconds: 4, takes: 3, use: [1, 3],
     text: 'A distant flock of swifts calling high in an open sky: faint airy chirps and a few soft wing flutters far away. No music.',
   },
+
+  // ── Waking under the tree ───────────────────────────────────────────────
+  // She wakes from the fall gasping, and catches her breath (main.js, as
+  // breathe.glb plays): the only time she is heard. Close and dry, the
+  // breath alone, no words. Her breath in is only its inhale, and her breath
+  // out (no sigh) only its exhale, so that together they are one breath; as
+  // she slides down the trunk to sit, her back rubs on its bark.
+  {
+    name: 'wake-gasp', seconds: 1.5, takes: 4, use: [1], influence: 0.7,
+    text: 'Close-mic: a young woman jolts awake from a terrifying nightmare with one sharp, frightened gasp, a single quick inhale. Breath only, no words, no scream. Dry, intimate. No music.',
+  },
+  {
+    name: 'wake-pant', seconds: 9, takes: 4, use: [3], influence: 0.6,
+    text: 'Close-mic: a young woman just woken from a nightmare, out of breath and shaken, panting hard through her mouth, quick ragged breaths that gradually slow and calm down over time. Breathing only, no words, no moaning, no crying. Dry, intimate. No music.',
+  },
+  // Take 4, chosen by ear, from its own prompt (the deep breath was too much).
+  {
+    name: 'wake-breath', seconds: 2, takes: 4, use: [4], influence: 0.6, fade: 0.4,
+    text: 'A young woman quietly breathes in through slightly parted lips, a calm, ordinary breath, not dramatic. Only the inhale. Breath only, no voice, no words, no sigh, no moan. Dry, close-mic, intimate, quiet room. No music.',
+  },
+  {
+    name: 'wake-exhale', seconds: 2.5, takes: 1, influence: 0.6, fade: 0.4,
+    text: 'A young woman breathes out slowly through her mouth, a plain, soft, unvoiced exhale of air, calm. Only the exhale. Breath only, no voice, no words, no sigh, no moan. Dry, close-mic, intimate, quiet room. No music.',
+  },
+  // Take 1 from this prompt; take 2 from 'A light, subtle rub of a cotton
+  // shirt down rough tree bark, brief and soft.' One plays each time.
+  {
+    name: 'wake-slide', seconds: 1.5, takes: 2, use: [1, 2], influence: 0.6, fade: 0.3,
+    text: "A person's back in a cotton shirt sliding slowly down a rough tree trunk: a soft scrape of fabric against bark, settling at the bottom. Close foley, quiet outdoors, no voice, no music.",
+  },
+  // Her last breath out as she slides down the trunk.
+  {
+    name: 'wake-settle', seconds: 2.5, takes: 1, influence: 0.6, fade: 0.4,
+    text: 'A young woman lets a slow, quiet breath out through her nose, relaxed and natural. Only the exhale. Breath only, no voice, no words, no sigh, no moan. Dry, close-mic, intimate, quiet room. No music.',
+  },
+  // Takes 4-8 were chosen by ear from a wider round, each its own prompt (a
+  // shaky, an airy, a through-the-nose, a faintly voiced and a deep sigh);
+  // one of them plays each time.
+  {
+    name: 'wake-sigh', seconds: 3, takes: 8, use: [4, 5, 6, 7, 8], influence: 0.6, fade: 0.3,
+    text: 'Close-mic: a young woman lets out one long, soft sigh of relief, it was only a dream. Breath only, no words, no moan. Dry, intimate. No music.',
+  },
+
 ];
