@@ -1,4 +1,5 @@
-import { Entity, Vec3 } from 'playcanvas';
+import { assetUrl } from './assetUrl.js';
+import { ADDRESS_CLAMP_TO_EDGE, Asset, Entity, Vec3 } from 'playcanvas';
 import { fbm1 } from './noise.js';
 import { canvasTexture, createQuad, drawGlow, makeSprite, setOpacity, setTint, smooth, spriteMaterial } from './sprites.js';
 
@@ -102,8 +103,8 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
     : [];
   const lamps = fireflies.filter((s) => s.lamp);
 
-  function updateFireflies(dt, night, gust) {
-    const glow = 0.18 + 0.82 * night;
+  function updateFireflies(dt, night, gust, shown) {
+    const glow = (0.18 + 0.82 * night) * shown;
     for (const s of fireflies) {
       const t = time * 0.12;
       const w = s.wander;
@@ -145,7 +146,7 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
     s.age = 0;
   };
 
-  function updateMotes(dt, light, gust) {
+  function updateMotes(dt, light, gust, shown) {
     for (const s of motes) {
       s.age += dt;
       s.pos.add(tmp.copy(wind).mulScalar((0.05 + gust * 1.6) * dt));
@@ -157,7 +158,7 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
       s.entity.lookAt(camPos, Vec3.UP);
       s.entity.setLocalScale(s.size, s.size, 1);
       const glint = 0.5 + 0.5 * Math.sin(time * 2.1 + s.seed * 5);
-      setOpacity(s, (0.12 + 0.3 * glint) * light * smooth(0, 1, s.age) * smooth(0.5, 1.2, d));
+      setOpacity(s, (0.12 + 0.3 * glint) * light * shown * smooth(0, 1, s.age) * smooth(0.5, 1.2, d));
       setTint(s, [1, 0.92, 0.75]);
     }
   }
@@ -176,6 +177,35 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
     s.live = false;
     return s;
   });
+
+  // Four painted silhouettes share one texture/material. Keep the procedural
+  // leaf until the atlas arrives, so loading never holds up the opening scene.
+  const leafAtlas = new Asset('painted windblown leaves', 'texture', {
+    url: assetUrl('ambience/painted-leaves.png'),
+  });
+  leafAtlas.ready(() => {
+    const texture = leafAtlas.resource;
+    texture.addressU = texture.addressV = ADDRESS_CLAMP_TO_EDGE;
+    const fallback = leafMat.emissiveMap;
+    leafMat.emissiveMap = leafMat.opacityMap = texture;
+    leafMat.update();
+    // Image rows run downward; mesh UVs run upward. Transparent gutters keep
+    // neighboring leaves out of the filtered edges of each atlas cell.
+    const leafQuads = Array.from({ length: 4 }, (_, i) => {
+      const mesh = createQuad(device);
+      const u = (i % 2) * 0.5;
+      const v = i < 2 ? 0.5 : 0;
+      mesh.setUvs(0, [u, v, u + 0.5, v, u + 0.5, v + 0.5, u, v + 0.5]);
+      mesh.update();
+      return mesh;
+    });
+    leaves.forEach((s, i) => { s.meshInstance.mesh = leafQuads[i % 4]; });
+    fallback.destroy();
+  });
+  leafAtlas.once('error', (error) => console.warn('Painted leaves unavailable; using fallback.', error));
+  scene.app.assets.add(leafAtlas);
+  scene.app.assets.load(leafAtlas);
+
   // A leaf comes in from upwind, off the edge of the view.
   function launchLeaf(s) {
     const d = rand(o.leafRange);
@@ -187,7 +217,7 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
     s.live = true;
   }
 
-  function updateLeaves(dt, gust, light) {
+  function updateLeaves(dt, gust, light, shown) {
     // How many are out is the wind's strength.
     const want = Math.round(leaves.length * Math.min(gust * 1.2, 1));
     let live = 0;
@@ -218,7 +248,7 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
       // Tumbling: the face turns edge-on now and then.
       const face = 0.35 + 0.65 * Math.abs(Math.sin(s.angle * 0.7 + s.seed));
       s.entity.setLocalScale(s.size, s.size * face, 1);
-      setOpacity(s, 0.95 * smooth(0, 0.4, s.age) * smooth(8, 6.5, s.age) * smooth(0.3, 0.9, d));
+      setOpacity(s, 0.95 * shown * smooth(0, 0.4, s.age) * smooth(8, 6.5, s.age) * smooth(0.3, 0.9, d));
       const shade = 0.45 + 0.55 * light;
       setTint(s, [shade, shade, shade]);
     }
@@ -235,7 +265,7 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
     return s;
   });
 
-  function updateStreaks(dt, gust, light) {
+  function updateStreaks(dt, gust, light, shown) {
     for (const s of streaks) {
       s.age += dt;
       if (s.age > s.life) {
@@ -253,7 +283,7 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
       s.entity.lookAt(camPos, wind);
       s.entity.setLocalScale(0.02, s.len, 1);
       const life = Math.sin((s.age / s.life) * Math.PI);
-      setOpacity(s, 0.07 * gust * life * (0.5 + 0.5 * light));
+      setOpacity(s, 0.07 * gust * life * (0.5 + 0.5 * light) * shown);
     }
   }
 
@@ -270,8 +300,10 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
       return lamps;
     },
     // night 0..1 (fireflies glow); light 0..1 (how much daylight catches the
-    // motes); wind 0..1 its strength; windDir a world direction it blows.
-    update(dt, camera, { night = 0, light = 1, wind: gust = 0, windDir = null } = {}) {
+    // motes); wind 0..1 its strength; windDir a world direction it blows;
+    // fireflies and drift 0..1, how much of the fireflies and of the motes,
+    // leaves and streaks to show (and of the lamps' light).
+    update(dt, camera, { night = 0, light = 1, wind: gust = 0, windDir = null, fireflies: lit = 1, drift = 1 } = {}) {
       if (!enabled) return;
       time += dt;
       camPos.copy(camera.getPosition());
@@ -280,10 +312,10 @@ export function createAmbience(scene, { fireflyPools = [], options = {} } = {}) 
       camUp.copy(camera.up);
       nearDepth = (2 * o.fireflyNearM) / Math.tan((camera.camera.fov * Math.PI) / 360);
       if (windDir) wind.copy(windDir).normalize();
-      updateFireflies(dt, night, gust);
-      updateMotes(dt, light, gust);
-      updateLeaves(dt, gust, light);
-      updateStreaks(dt, gust, light);
+      updateFireflies(dt, night, gust, lit);
+      updateMotes(dt, light, gust, drift);
+      updateLeaves(dt, gust, light, drift);
+      updateStreaks(dt, gust, light, drift);
     },
   };
 }

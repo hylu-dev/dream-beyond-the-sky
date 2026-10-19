@@ -1,3 +1,4 @@
+import { assetUrl } from './assetUrl.js';
 import {
   Asset, BLEND_NORMAL, CULLFACE_NONE, Color, Entity, Mesh, MeshInstance,
   SHADERLANGUAGE_GLSL, SHADERLANGUAGE_WGSL, ShaderChunks, StandardMaterial, Vec3,
@@ -52,7 +53,7 @@ function material(device) {
 // Hand-authored atlas frames include transparent gutters and all soft mist.
 // The generated paintings vary in width; preserve each frame's aspect ratio.
 export const ISLAND_ART = {
-  url: '/assets/flight/painted-islands-atlas.png',
+  url: assetUrl('flight/painted-islands-atlas.png'),
   width: 1254,
   height: 1254,
   frames: [
@@ -126,6 +127,8 @@ export function createFlightScenery(scene, options = {}) {
   });
   const tmp = new Vec3();
   let cursor = 0, sequence = 0, time = 0, recycled = 0;
+  // The nearest flock to her, for its calls: metres, and 1 to her left or -1.
+  const nearestFlock = { distance: Infinity, side: 1 };
 
   function placeIsland(island, s, along, first = false) {
     const sign = sequence++ % 2 ? -1 : 1;
@@ -150,6 +153,7 @@ export function createFlightScenery(scene, options = {}) {
   }
 
   function updateBirds(dt, s) {
+    nearestFlock.distance = Infinity;
     for (const flock of flocks) {
       flock.age += dt;
       advance(advance(flock.center, s.left, flock.direction * dt * 3.1), s.forward, dt * 1.7);
@@ -179,6 +183,10 @@ export function createFlightScenery(scene, options = {}) {
       flock.mesh.setPositions(flock.positions);
       flock.mesh.update();
       const distance = tmp.copy(flock.center).sub(s.pos).length();
+      if (distance < nearestFlock.distance) {
+        nearestFlock.distance = distance;
+        nearestFlock.side = Math.sign(tmp.dot(s.left)) || 1;
+      }
       flock.instance.setParameter('material_opacity', 0.68 * smooth(0, 3, flock.age) * smooth(175, 125, distance));
       flock.instance.setParameter('flight_haze', 0.18 + smooth(30, 160, distance) * 0.5);
     }
@@ -226,6 +234,7 @@ export function createFlightScenery(scene, options = {}) {
     },
     get enabled() { return root.enabled; },
     set enabled(v) { root.enabled = v; },
+    nearestFlock,
     stats() {
       return { islands: islands.length, visibleIslands: islands.filter(i => i.entity.enabled).length,
         birds: flocks.length * o.birdsPerFlock, recycled, textureReady: !!asset.resource,

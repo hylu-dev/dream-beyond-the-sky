@@ -60,8 +60,10 @@ def terrain_material():
     rock=n.new('ShaderNodeTexImage'); rock.image=bpy.data.images.load(str(OUT/'painted-stone.png')); rock.image.pack()
     links.new(uv.outputs[0],rock.inputs['Vector'])
     grass=n.new('ShaderNodeTexImage'); grass.image=bpy.data.images.load(str(OUT/'painted-grass.png')); grass.image.pack()
-    geometry=n.new('ShaderNodeNewGeometry'); mapping=n.new('ShaderNodeVectorMath'); mapping.operation='SCALE'; mapping.inputs[3].default_value=.1
-    links.new(geometry.outputs['Position'],mapping.inputs[0]); links.new(mapping.outputs[0],grass.inputs['Vector'])
+    mapping=n.new('ShaderNodeVectorMath'); mapping.operation='SCALE'; mapping.inputs[3].default_value=2.4
+    # The existing face projection includes vertical coordinates on walls.
+    # Top-only projection would smear the grass down the vertical rim.
+    links.new(uv.outputs[0],mapping.inputs[0]); links.new(mapping.outputs[0],grass.inputs['Vector'])
     gray=n.new('ShaderNodeRGBToBW'); links.new(grass.outputs['Color'],gray.inputs[0])
     noise=n.new('ShaderNodeMath'); noise.operation='MULTIPLY_ADD'; noise.inputs[1].default_value=1.6; noise.inputs[2].default_value=-.32
     links.new(gray.outputs[0],noise.inputs[0])
@@ -465,9 +467,11 @@ def export_portable(slug,objects,terrain_objects):
     restore=[]
     for index,obj in enumerate(terrain_objects):
         bpy.ops.object.select_all(action='DESELECT');obj.select_set(True);bpy.context.view_layer.objects.active=obj
-        original_uv=obj.data.uv_layers.active
+        original_uv=obj.data.uv_layers.active.name
         portable=obj.data.uv_layers.new(name='Portable baked UV')
         obj.data.uv_layers.active=portable
+        portable.active_render=True
+        portable_name=portable.name
         bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.uv.smart_project(angle_limit=1.15,island_margin=.025);bpy.ops.object.mode_set(mode='OBJECT')
         size=1024 if index==0 else 256
@@ -483,7 +487,7 @@ def export_portable(slug,objects,terrain_objects):
         colors=obj.data.color_attributes['PaintedLight'];original_colors=[tuple(c.color) for c in colors.data]
         for c in colors.data: c.color=(1,1,1,1)
         obj.data.materials[0]=portable_mat
-        restore.append((obj,original_uv,original_colors,portable))
+        restore.append((obj,original_uv,original_colors,portable_name))
     bpy.ops.object.select_all(action='DESELECT')
     for obj in objects: obj.select_set(True)
     bpy.context.view_layer.objects.active=objects[0]
@@ -492,7 +496,12 @@ def export_portable(slug,objects,terrain_objects):
     for obj,original_uv,colors,portable in restore:
         obj.data.materials[0]=TERRAIN
         for c,color in zip(obj.data.color_attributes['PaintedLight'].data,colors): c.color=color
-        obj.data.uv_layers.remove(portable);obj.data.uv_layers.active=original_uv
+        # Edit-mode UV operations invalidate RNA layer handles. Resolve by name
+        # after leaving edit mode, otherwise a stale handle can remove colour.
+        obj.data.uv_layers.remove(obj.data.uv_layers[portable])
+        obj.data.uv_layers.active=obj.data.uv_layers[original_uv]
+        obj.data.uv_layers[original_uv].active_render=True
+        assert 'PaintedLight' in obj.data.color_attributes
 
 
 def bake_contact_shading(objects):

@@ -33,9 +33,11 @@ const ivyPng = await readFile(new URL('../public/assets/flight/cliffs/painted-iv
 const ivyAspect = ivyPng.readUInt32BE(16) / ivyPng.readUInt32BE(20);
 assert.ok(ivyAspect < .4, 'dedicated ivy is a tall texture');
 assert.equal(data.source, 'Blender');
-assert.equal(data.variants.length, 3);
+assert.deepEqual(data.variants.map(v=>v.id), ['tall-spire','chunk','arch','slab']);
 const texture = new Texture(device, { width: 1254, height: 1254 });
 const mat = createCliffMaterial(device, texture);
+const terrainMat = createCliffMaterial(device,texture,false,texture);
+assert.equal(terrainMat.opacityVertexColor,false,'grass weights do not make the rock transparent');
 const foliageMat = createCliffMaterial(device, texture, true);
 assert.equal(foliageMat.opacityMap, texture, 'foliage uses the generated alpha cutouts');
 assert.equal(foliageMat.alphaTest, .35);
@@ -44,10 +46,10 @@ assert.equal(mat.useLighting, false, 'stone uses painted, baked illumination');
 assert.equal(mat.depthWrite, true, 'rear clouds must be occluded by the cliff');
 assert.equal(mat.opacityMap, null, 'stone contains no painted cloud transparency');
 for (const variant of data.variants) {
-  const parts = [variant, variant.details, variant.greenery, variant.foliage, variant.ivy];
+  const parts = [variant, variant.details, variant.greenery, variant.foliage, variant.ivy, variant.fragments].filter(Boolean);
   assert.ok(parts.reduce((sum,part)=>sum+part.triangles,0) <= 2500, 'simplified dressed cliff stays within its geometry budget');
-  assert.ok(variant.triangles<=220, 'broad cliff faces replace the dense ribbed shell');
-  assert.ok(variant.bounds[1][1] - variant.bounds[0][1] >= 30, 'cliff is substantial at close range');
+  assert.ok(variant.triangles<=450, 'broad cliff faces replace the dense ribbed shell');
+  assert.ok(variant.bounds[1][1] - variant.bounds[0][1] >= 18, 'cliff is substantial at close range');
   for (const values of [variant.positions, variant.normals, variant.uvs, variant.colors]) assert.ok(values.every(Number.isFinite));
   assert.equal(variant.positions.length, variant.triangles * 9);
   assert.equal(variant.normals.length, variant.positions.length);
@@ -77,10 +79,12 @@ for (const variant of data.variants) {
     if(y<minY+height*.25) lower.push(x);
     if(y>minY+height*.70) upper.push(x);
   }
-  assert.ok(Math.max(...lower)-Math.min(...lower)<(Math.max(...upper)-Math.min(...upper))*.55, 'rock tapers to an uneven narrow base');
-  assert.equal(variant.trees,2);
+  if(variant.id!=='arch') assert.ok(Math.max(...lower)-Math.min(...lower)<(Math.max(...upper)-Math.min(...upper))*.70, 'rock tapers to an uneven narrow base');
+  assert.equal(variant.trees,1);
+  const grassWeights=variant.colors.filter((_,i)=>i%4===3);
+  assert.ok(grassWeights.some(w=>w===0)&&grassWeights.some(w=>w===1)&&grassWeights.some(w=>w>.1&&w<.9), 'terrain exports stone, meadow and soft transition weights');
   assert.ok(variant.vines>=8, 'ivy remains distributed around the perimeter');
-  assert.ok(variant.details.bounds[1][1]>maxY+2, 'ruined architecture rises above the terrace');
+  assert.ok(variant.details.bounds[1][1]>maxY+.2, 'ruined architecture rises above the terrace');
   assert.ok(variant.ivy.bounds[0][1]<maxY-15, 'ivy trails down the face, not just the summit');
   assert.equal(variant.ivy.triangles,variant.vines*2,'every vine uses one simple quad');
   for(let start=0;start<variant.ivy.positions.length/3;start+=6) {
@@ -99,15 +103,47 @@ for (const variant of data.variants) {
   }
   const entity = new Entity(variant.id);
   const colorMat=createCliffMaterial(device,null);
-  entity.addComponent('render', { meshInstances: parts.map((part,i)=>new MeshInstance(createCliffMesh(device,part),[mat,mat,colorMat,foliageMat,foliageMat][i])) });
+  entity.addComponent('render', { meshInstances: parts.map((part,i)=>new MeshInstance(createCliffMesh(device,part),[terrainMat,mat,colorMat,foliageMat,foliageMat,terrainMat][i])) });
   app.root.addChild(entity);
   const glb = await readFile(new URL(`../public/assets/flight/cliffs/${variant.id}.glb`, import.meta.url));
   const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)));
   for(const material of gltf.materials) assert.ok(material.extensions.KHR_materials_unlit);
-  assert.equal(gltf.materials.filter(m=>m.pbrMetallicRoughness.baseColorTexture).length,3);
+  assert.ok(gltf.materials.filter(m=>m.pbrMetallicRoughness.baseColorTexture).length>=4, 'portable terrain includes baked grass/stone blend');
+  for (const mesh of gltf.meshes) for (const primitive of mesh.primitives) {
+    const material=gltf.materials[primitive.material];
+    if(material.name.includes('portable-terrain')) {
+      assert.equal(material.pbrMetallicRoughness.baseColorTexture.texCoord,1,'baked terrain uses its portable UV layout');
+      assert.ok('TEXCOORD_1' in primitive.attributes);
+    }
+  }
   assert.ok(gltf.materials.some(m=>m.alphaMode==='BLEND'||m.alphaMode==='MASK'), 'portable foliage retains alpha');
   for (const m of gltf.meshes) assert.ok('COLOR_0' in m.primitives[0].attributes, 'portable GLB retains painted shading');
 }
+// Verify the defining silhouettes independently of their labels.
+const byId=Object.fromEntries(data.variants.map(v=>[v.id,v]));
+const size=v=>v.bounds[1].map((n,i)=>n-v.bounds[0][i]);
+assert.ok(size(byId['tall-spire'])[1]/size(byId['tall-spire'])[0]>2);
+assert.ok(size(byId.slab)[0]/size(byId.slab)[1]>1.6);
+assert.ok(size(byId.chunk)[0]>26);
+function hits(mesh,x,y) {
+  const p=mesh.positions, origin=new Vec3(x,y,-100), direction=new Vec3(0,0,1);
+  for(let i=0;i<p.length;i+=9) {
+    const a=new Vec3(...p.slice(i,i+3)),b=new Vec3(...p.slice(i+3,i+6)),c=new Vec3(...p.slice(i+6,i+9));
+    const e1=b.clone().sub(a),e2=c.clone().sub(a),h=new Vec3().cross(direction,e2),det=e1.dot(h);
+    if(Math.abs(det)<1e-7) continue;
+    const s=origin.clone().sub(a),u=s.dot(h)/det;
+    if(u<0||u>1) continue;
+    const q=new Vec3().cross(s,e1),v=direction.dot(q)/det;
+    if(v<0||u+v>1) continue;
+    if(e2.dot(q)/det>0) return true;
+  }
+  return false;
+}
+assert.equal(hits(byId.arch,0,0),false,'arch opening is genuinely empty through its depth');
+assert.equal(hits(byId.arch,0,11),true,'arch has a connecting stone bridge');
+assert.equal(hits(byId.arch,-13,-7),true,'arch has a left leg');
+assert.equal(hits(byId.arch,13,-7),true,'arch has a right leg');
+
 const camera = new Entity('camera');
 camera.addComponent('camera');
 app.root.addChild(camera);
@@ -141,4 +177,21 @@ assert.throws(()=>wind.anchorCloud(99,new Vec3(),10), RangeError);
 camera.setPosition(7,2,55);
 camera.lookAt(-18,0,0);
 app.render();
-console.log(JSON.stringify({passed:true,variants:data.variants.map(v=>({name:v.name,triangles:[v,v.details,v.greenery,v.foliage,v.ivy].reduce((sum,p)=>sum+p.triangles,0),trees:v.trees,vines:v.vines})),cloudSprites:128,simulatedSeconds:120,gpuVisualCheck:false},null,2));
+assert.ok(terrainMat.variants.size>0,'terrain GLSL shader is generated during render submission');
+for(const shader of terrainMat.variants.values()) { assert.ok(!shader.failed); assert.ok(shader.definition.fshader.includes('grassWeight')); assert.ok(!shader.definition.fshader.includes('{STD_')); }
+// Exercise the native WGSL source path too. Null device validates generation
+// and preprocessing, not GPU compilation or final pixel output.
+const {getProgramLibrary}=await import('../node_modules/playcanvas/build/playcanvas/src/scene/shader-lib/get-program-library.js');
+getProgramLibrary(device).clearCache();
+getProgramLibrary(device).definitionsCache.clear();
+device.isWebGPU=true;
+try {
+  const wgslMat=createCliffMaterial(device,texture,false,texture);
+  const wgslMesh=createCliffMesh(device,data.variants[0]);
+  const instance=new MeshInstance(wgslMesh,wgslMat);
+  const shader=instance.getShaderInstance(0,0,app.scene,camera.camera.camera.shaderParams,null,null,[[],[],[]]).shader;
+  assert.equal(shader.definition.shaderLanguage,'wgsl');
+  assert.ok(!shader.failed && shader.definition.fshader.includes('fn getEmission'));
+  assert.ok(shader.definition.fshader.includes('grassWeight')&&!shader.definition.fshader.includes('{STD_'));
+} finally { device.isWebGPU=false; }
+console.log(JSON.stringify({passed:true,variants:data.variants.map(v=>({name:v.name,triangles:[v,v.details,v.greenery,v.foliage,v.ivy,v.fragments].filter(Boolean).reduce((sum,p)=>sum+p.triangles,0),trees:v.trees,vines:v.vines})),cloudSprites:128,simulatedSeconds:120,gpuVisualCheck:false},null,2));

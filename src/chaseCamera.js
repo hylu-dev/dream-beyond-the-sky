@@ -120,7 +120,9 @@ export function createChaseCamera(cameraEntity, options = {}) {
       // flight it keeps pace exactly, so it never falls behind or overtakes.
       const [k, d] = o.springs.position;
       camVel.x += (k * (goal.x - camPos.x) - d * camVel.x) * dt;
-      camVel.y += (k * (goal.y - camPos.y) - d * camVel.y) * dt;
+      // Vertically it damps toward her own climb, so a long climb or dive
+      // doesn't leave it trailing below or above her line.
+      camVel.y += (k * (goal.y - camPos.y) - d * (camVel.y - (s.climbVel ?? 0))) * dt;
       camVel.z += (k * (goal.z - camPos.z) - d * camVel.z) * dt;
       const alongV = camVel.x * s.forward.x + camVel.z * s.forward.z;
       camVel.x -= s.forward.x * alongV;

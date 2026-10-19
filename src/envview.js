@@ -1,3 +1,4 @@
+import { assetUrl } from './assetUrl.js';
 import { Vec3 } from 'playcanvas';
 import { Scene, Environment, Character, Animation, SkyDome } from '@viggle/splat-engine';
 
@@ -10,13 +11,13 @@ const q = new URLSearchParams(location.search);
 const scene = await Scene.create(document.getElementById('canvas'), { fov: 60, near: 0.05, far: 5000 });
 scene.start();
 const [env, character] = await Promise.all([
-  Environment.load(scene, `/assets/${q.get('env') ?? 'floating-island-realm.spz'}`, {
+  Environment.load(scene, assetUrl(q.get('env') ?? 'floating-island-realm.spz'), {
     scale: +(q.get('scale') ?? 8.2915),
     position: { x: 0, y: 1.5, z: 0 },
   }),
-  Character.load(scene, '/assets/martial-artist.vsplat'),
-  Animation.loadGlb(scene, '/assets/anims/idle.glb', 'idle'),
-  Animation.loadGlb(scene, '/assets/anims/doze.glb', 'doze'),
+  Character.load(scene, assetUrl('martial-artist.vsplat')),
+  Animation.loadGlb(scene, assetUrl('anims/idle.glb'), 'idle'),
+  Animation.loadGlb(scene, assetUrl('anims/doze.glb'), 'doze'),
 ]);
 if (q.has('clip')) {
   env.setClipDistanceOrigin(new Vec3(0, 1.5, 0));

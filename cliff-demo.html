@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#252e3c" />
   <title>Cliff study — flight preview</title>
+  <link rel="icon" type="image/png" href="%BASE_URL%favicon.png" />
   <style>
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #65748a; color: #fff8eb; font-family: system-ui, sans-serif; }
@@ -33,14 +34,15 @@
 </head>
 <body>
   <canvas id="canvas" aria-label="Painted cliffs surrounded by the game's live clouds"></canvas>
-  <header><div class="eyebrow">Floating realm / foreground study</div><h1 id="title">Sanctuary</h1><p>Weathered limestone, old pines and hanging gardens.</p></header>
+  <header><div class="eyebrow">Floating realm / foreground study</div><h1 id="title">Tall Spire</h1><p>Painted meadows, weathered stone and hanging gardens.</p></header>
   <div class="review">Asset review · not yet in game</div>
   <div id="pass">Approaching the cliff</div>
   <nav id="controls" aria-label="Cliff preview controls">
     <div class="group" aria-label="Formation">
-      <button data-variant="0" aria-pressed="true">Sanctuary</button>
-      <button data-variant="1" aria-pressed="false">Garden ledge</button>
-      <button data-variant="2" aria-pressed="false">Watchtower</button>
+      <button data-variant="0" aria-pressed="true">Tall Spire</button>
+      <button data-variant="1" aria-pressed="false">Chunk</button>
+      <button data-variant="2" aria-pressed="false">Arch</button>
+      <button data-variant="3" aria-pressed="false">Slab</button>
     </div>
     <span class="divider"></span>
     <div class="group"><button id="fly" aria-pressed="false">Fly-by</button><button id="inspect" aria-pressed="true">Inspect</button></div>

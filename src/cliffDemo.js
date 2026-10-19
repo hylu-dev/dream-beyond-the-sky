@@ -1,3 +1,4 @@
+import { assetUrl } from './assetUrl.js';
 import { Vec3 } from 'playcanvas';
 import { Scene, Environment } from '@viggle/splat-engine';
 import { loadCliffAssets } from './cliffAssets.js';
@@ -15,7 +16,7 @@ async function start() {
   scene.start();
   const [assets, sky] = await Promise.all([
     loadCliffAssets(scene),
-    Environment.load(scene, '/assets/cloud-realm.spz', { scale: 6.065 * 30 }),
+    Environment.load(scene, assetUrl('cloud-realm.spz'), { scale: 6.065 * 30 }),
   ]);
   // Same realm and bearing as the flying game, viewed along -Z in this study.
   sky.entity.setEulerAngles(0, 180 - 120, 0);

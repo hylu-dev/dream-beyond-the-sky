@@ -11,18 +11,19 @@ import { canvasTexture, createQuad, makeSprite as addSprite, setOpacity, smooth,
 // the frame with cloud, which is where the scene change hides.
 
 export const WIND_DEFAULTS = {
-  clouds: 12,
+  clouds: 14,
+  reserved: 0, // extra banks kept out of the stream for anchorCloud()
   spritesPerCloud: 16,
-  cloudRadius: [12, 26], // metres
-  cloudSpacing: [20, 34], // metres along her path between clouds; gaps let the sky show
+  cloudRadius: [8, 18], // metres
+  cloudSpacing: [13, 24], // metres along her path between clouds; gaps let the sky show
   sideSwitch: 0.75, // chance the next cloud is on the other side, keeping a channel open
-  clearingChance: 0.2, // chance of a long open stretch after a cloud
-  clearingLength: [45, 80], // metres of open sky that reveals the backdrop
-  cloudAhead: 130, // clouds appear this far ahead and fade in
-  cloudOffset: [3, 14], // sideways from her path to the cloud's dense core
+  clearingChance: 0.15, // chance of a long open stretch after a cloud
+  clearingLength: [35, 60], // metres of open sky that reveals the backdrop
+  cloudAhead: 120, // clouds appear this far ahead and fade in
+  cloudOffset: [3, 16], // sideways from her path to the cloud's dense core
   closeCloudChance: 0.4, // a cloud that passes within a few metres
   closeOffset: [0, 2.5], // its outer wisps still brush the camera
-  cloudDrop: [-14, 5], // vertical offset; mostly below, so she skims the tops
+  cloudDrop: [-16, 6], // vertical offset; mostly below, so she skims the tops
   deckChance: 0.18, // a wide bank right under her path that she skims over
   deckRadius: [20, 34],
   deckDrop: [-5, -2], // where the deck's dense tops sit below her
@@ -64,16 +65,20 @@ export function createWindFx(scene, options = {}) {
 
   // ── Clouds ──────────────────────────────────────────────────────────────
 
-  const clouds = Array.from({ length: o.clouds }, (_, c) => ({
+  // The stream first, then the reserved banks, hidden until anchored.
+  const clouds = Array.from({ length: o.clouds + o.reserved }, (_, c) => ({
     center: new Vec3(),
     radius: 1,
     age: 0,
+    anchored: c >= o.clouds,
+    opacity: c >= o.clouds ? 0 : 1,
     sprites: Array.from({ length: o.spritesPerCloud }, (_, i) => ({
       ...makeSprite(`cloud-${c}-${i}`, cloudMaterials[(c + i) % cloudMaterials.length]),
       offset: new Vec3(),
       size: 1,
     })),
   }));
+  const stream = clouds.slice(0, o.clouds);
   let cursor = 0; // distance along her path where the next cloud goes
   let cloudSide = 1; // which side of her path the last cloud went
   const nextSpacing = () =>
@@ -134,7 +139,7 @@ export function createWindFx(scene, options = {}) {
 
   function seedClouds(s, clearAhead) {
     cursor = s.pos.dot(s.forward) + clearAhead;
-    for (const cloud of clouds) {
+    for (const cloud of stream) {
       placeCloud(cloud, s, cursor);
       cloud.age = 10; // already faded in
       cursor += nextSpacing();
@@ -255,7 +260,7 @@ export function createWindFx(scene, options = {}) {
       const s = flight.state;
       dir.copy(s.vel).normalize();
       camPos.copy(camera.getPosition());
-      clouds.forEach(cloud => { cloud.anchored = false; cloud.opacity = 1; });
+      stream.forEach(cloud => { cloud.anchored = false; cloud.opacity = 1; });
       seedClouds(s, clearAhead);
       streaks.forEach((st) => respawnStreak(st, s, true));
     },
@@ -271,17 +276,26 @@ export function createWindFx(scene, options = {}) {
       fillCloud(cloud, radius);
       cloud.age = 10;
     },
+    // Carries an anchored bank, as it is, to a new middle.
+    moveCloud(index, center) {
+      clouds[index].center.copy(center);
+    },
+    // The indices of the reserved banks.
+    get reservedClouds() {
+      return Array.from({ length: o.reserved }, (_, i) => o.clouds + i);
+    },
 
     // Three of the clouds become one dense bank centred on her line, `ahead`
-    // metres in front of her. Returns the distance along her line of its middle.
-    placeWipe(flight, ahead, radius = o.wipeRadius) {
+    // metres in front of her; with `fade`, it fades in rather than being there
+    // already. Returns the distance along her line of its middle.
+    placeWipe(flight, ahead, radius = o.wipeRadius, { fade = false } = {}) {
       const s = flight.state;
       const along = s.pos.dot(s.forward) + ahead;
       clouds.slice(0, 3).forEach((cloud, i) => {
         pathPoint(s, along + (i - 1) * radius * 0.4, cloud.center);
         cloud.center.y = s.altitude - radius * 0.15;
         fillCloud(cloud, radius);
-        cloud.age = 10;
+        cloud.age = fade ? 0 : 10;
       });
       cursor = Math.max(cursor, along + radius * 2);
       return along;

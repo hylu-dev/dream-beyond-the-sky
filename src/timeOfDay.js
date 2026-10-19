@@ -270,6 +270,12 @@ export async function createTimeOfDay(scene, { environment, character, captureOr
       environment.setTint(0);
       character.setTint(0);
     },
+    // And take it up again, as it was left.
+    enable() {
+      if (sky) sky.enabled = true;
+      if (relight) relight.enabled = true;
+      apply();
+    },
   };
 }
 

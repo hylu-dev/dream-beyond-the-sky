@@ -1,3 +1,4 @@
+import { assetUrl } from './assetUrl.js';
 import { LAYERID_WORLD, Vec3 } from 'playcanvas';
 import {
   Scene,
@@ -15,11 +16,16 @@ import { createFireflyLight } from './fireflyLight.js';
 import { MagicPulse } from './magicPulse.js';
 import { createFlight } from './flight.js';
 import { createFlightRig } from './flightRig.js';
+import { createSeatPose } from './seatPose.js';
 import { createChaseCamera } from './chaseCamera.js';
 import { createLaunchShot } from './launchShot.js';
 import { createWindFx } from './windFx.js';
 import { createFlightScenery } from './flightScenery.js';
+import { loadCliffAssets } from './cliffAssets.js';
+import { createFlightCliffs } from './flightCliffs.js';
+import { createCrash } from './crash.js';
 import { createFlightAir } from './flightAir.js';
+import { createAudio } from './audio.js';
 import { fbm1 } from './noise.js';
 
 // ── Tunables (mock values; iterate on these) ───────────────────────────────
@@ -194,6 +200,11 @@ const HOLD_SWAY = VIEW.sway; // carried on from the back-out
 // blows (toward the tree). Fireflies hang in pools of open air: a few close
 // round her as she sleeps, lighting her, and more out in front of the shots.
 const WIND = { calm: 0.1, brink: 0.3, direction: { x: -0.3, y: 0.06, z: 1 }, gust: 0.3 };
+// As she wakes the fireflies scatter, and the motes and leaves go with them,
+// over `seconds`, gone `before` seconds ahead of the turn: the camera's arc
+// round her would swing them all about her together. The motes and leaves
+// drift back in over `returnSeconds` once it has settled on the dawn.
+const SCATTER = { seconds: 1.2, before: 0.2, returnSeconds: 2 };
 const FIREFLY_POOLS = [
   { center: { x: -0.95, y: 2.55, z: -4.65 }, size: { x: 0.9, y: 0.35, z: 0.6 }, count: 9, wander: 0.22, lamps: 2 }, // round her lap
   { center: { x: -0.6, y: 2.5, z: -3.9 }, size: { x: 2.2, y: 0.5, z: 1.8 }, wander: 0.35 }, // in front of her seat, kept below her face
@@ -279,11 +290,48 @@ const SKY_GRADE = { share: 0.35, herShare: 0.85, settle: 0.3, after: 1, seconds:
 // for `seconds` (as in index.html), and the controls come up as it goes.
 const AREA_TITLE = { after: 1.2, seconds: 6.5, controlsBefore: 0.8 };
 
+// After this long flying free she is caught by the storm and the crash runs
+// (crash.js) to the end; ?crash=N for N seconds instead. For testing,
+// ?impact=1 goes straight to it, and so does I, in flight or on the title.
+// The flight's cliffs stop `clearMargin` metres short of where the storm
+// will meet her, so none stand in its way to be moved.
+const CRASH_AFTER = Number(new URLSearchParams(location.search).get('crash')) || 32;
+const CRASH = { clearMargin: 40 };
+let crashNow = new URLSearchParams(location.search).get('impact') === '1';
+
+// The fall was a dream. It cuts to black and she is back under the tree at
+// night, where she dozed. The black opens from the middle on a world all blur
+// that slowly clears, on her face, close on a long lens, as she breathes deep (breathe.glb,
+// PINOC "Deep Breathing": down in a low wide stance, rising, gathering her
+// breath to her belly and letting it go). The camera keeps on her face as she
+// rises, and slowly backs out; then it cuts to her whole, from in front, and
+// for the deep breath at the end of it, in low on her, from her side, looking
+// up; and she settles into standing.
+const WAKE_UP = {
+  lids: [[0.15, 1], [0.85, 0]], // [seconds, shut], eased between: opening once
+  blur: { px: 10, seconds: 4.5 },
+  close: { metres: 3.1, side: 0.2, up: -0.02, fov: 10 },
+  faceHeight: 2, // over her feet, as the clip starts
+  backOut: { from: 1.4, seconds: 6.5, metres: 1.3, rise: 0.12, fov: 24 },
+  wideAt: 7.4, // seconds in, cut to her whole
+  wide: { position: { x: 0.25, y: 2.05, z: -1.1 }, lookUp: 0.92, fov: 30, wander: 0.08 },
+  endAt: 9.4, // seconds in, cut in for the deep breath
+  // Metres ahead of her and to her right (- left) of where she stands, its
+  // height over her feet, how far under her face it looks, and how far it
+  // pushes in over the shot.
+  end: { ahead: 2.3, side: -1.2, height: 1.15, lookDown: 0.3, fov: 30, push: 0.35, seconds: 5 },
+  idleAt: 12, // into the standing idle as the clip ends
+};
+
 // ── Setup ───────────────────────────────────────────────────────────────────
 
 const canvas = document.getElementById('canvas');
 const fadeEl = document.getElementById('fade');
 const curtainEl = document.getElementById('curtain');
+const dreadEl = document.getElementById('dread');
+const lidsEl = document.getElementById('lids');
+// The black over the screen, opening from the middle: 0 open, 1 shut.
+const setLids = (v) => lidsEl.style.setProperty('--shut', v.toFixed(3));
 const skipEl = document.getElementById('skip');
 const hintEl = document.getElementById('hint');
 const areaEl = document.getElementById('area');
@@ -291,28 +339,36 @@ const menuEl = document.getElementById('menu');
 const controlsEl = document.getElementById('controls');
 const startEl = document.getElementById('start');
 
+// The sound (audio.js). Browsers allow none until the page is clicked or a
+// key pressed, so it starts with the first of those, whatever it was for.
+const audio = createAudio();
+for (const type of ['pointerdown', 'pointerup', 'keydown']) window.addEventListener(type, () => audio.unlock());
 
 const scene = await Scene.create(canvas, { fov: 50, near: 0.05, far: 5000 });
 scene.start();
 
 // Both scenes are current-era SPZ (NGSP v4): +Y up, so no rotation.
-const [sanctuary, sky, character] = await Promise.all([
-  Environment.load(scene, '/assets/floating-island-realm.spz', {
+const [sanctuary, sky, character, cliffAssets] = await Promise.all([
+  Environment.load(scene, assetUrl('floating-island-realm.spz'), {
     scale: REALM_M_PER_UNIT,
     position: { x: 0, y: 1.5, z: 0 }, // floor at y = 0
   }),
-  Environment.load(scene, '/assets/cloud-realm.spz', {
+  Environment.load(scene, assetUrl('cloud-realm.spz'), {
     scale: SKY_M_PER_UNIT * SKY_SCALE,
   }),
-  Character.load(scene, '/assets/martial-artist.vsplat'),
-  Animation.loadGlb(scene, '/assets/anims/idle.glb', 'idle'),
-  Animation.loadGlb(scene, '/assets/anims/doze.glb', 'doze'),
-  Animation.loadGlb(scene, '/assets/anims/wake.glb', 'wake'),
-  Animation.loadGlb(scene, '/assets/anims/vanish.glb', 'vanish'),
-  Animation.loadGlb(scene, '/assets/anims/flail.glb', 'flail'),
+  Character.load(scene, assetUrl('martial-artist.vsplat')),
+  loadCliffAssets(scene),
+  Animation.loadGlb(scene, assetUrl('anims/idle.glb'), 'idle'),
+  Animation.loadGlb(scene, assetUrl('anims/doze.glb'), 'doze'),
+  Animation.loadGlb(scene, assetUrl('anims/wake.glb'), 'wake'),
+  Animation.loadGlb(scene, assetUrl('anims/vanish.glb'), 'vanish'),
+  Animation.loadGlb(scene, assetUrl('anims/flail.glb'), 'flail'),
+  Animation.loadGlb(scene, assetUrl('anims/impact.glb'), 'impact'),
+  Animation.loadGlb(scene, assetUrl('anims/limpfall.glb'), 'limpfall'),
+  Animation.loadGlb(scene, assetUrl('anims/breathe.glb'), 'breathe'),
 ]);
 sky.entity.enabled = false;
-const vanishPath = await (await fetch('/assets/anims/vanish.path.json')).json();
+const vanishPath = await (await fetch(assetUrl('anims/vanish.path.json'))).json();
 
 const timeOfDay = await createTimeOfDay(scene, {
   environment: sanctuary,
@@ -342,6 +398,10 @@ const BODY_MASK = {
 
 const flight = createFlight({ headingDeg: EDGE.headingDeg });
 const flightRig = createFlightRig(character);
+// Her hands lifted clear of her trousers while she sits under the tree,
+// until she is moved to the edge under the pulse's flash.
+const SEATED = new Set(['menu', 'approach', 'portrait', 'turn', 'dawn']);
+const seatPose = createSeatPose(character, { seated: () => !moved && SEATED.has(state) });
 const chaseCamera = createChaseCamera(scene.cameraEntity);
 const launchShot = createLaunchShot(scene.cameraEntity, chaseCamera);
 // The near clouds in the golden hour she leaves the island in: a dusky rose
@@ -354,8 +414,40 @@ const CLOUD_COLORS = {
   sky: { base: [0.7, 0.72, 0.85], top: [1, 0.98, 0.97] },
 };
 const windFx = createWindFx(scene, { baseColor: CLOUD_COLORS.warm.base, topColor: CLOUD_COLORS.warm.top });
-const flightScenery = createFlightScenery(scene);
+// Big slow banks out across the whole sky, beyond the ones she flies past;
+// its reserved banks wrap the cliffs' feet.
+const skyClouds = createWindFx(scene, {
+  clouds: 24,
+  reserved: 12,
+  spritesPerCloud: 10,
+  cloudRadius: [20, 42],
+  cloudSpacing: [11, 20],
+  sideSwitch: 0.5,
+  clearingChance: 0,
+  cloudAhead: 340,
+  cloudOffset: [16, 90],
+  closeCloudChance: 0,
+  cloudDrop: [-42, 26],
+  deckChance: 0.15,
+  deckRadius: [40, 60],
+  deckDrop: [-36, -24],
+  streaks: 0,
+  baseColor: CLOUD_COLORS.warm.base,
+  topColor: CLOUD_COLORS.warm.top,
+});
+// The painted billboard islands are retired for the modelled cliffs; the
+// birds stay.
+const flightScenery = createFlightScenery(scene, { islands: 0 });
+// A cliff she passes close by goes past with a whoosh, on its side.
+const flightCliffs = createFlightCliffs(scene, cliffAssets, {
+  clouds: skyClouds,
+  onPass: ({ gap, side }) => audio.play('cliff-pass', { gain: 0.35 + 0.65 * smooth(16, 3, gap), pan: -0.7 * side }),
+});
 const flightAir = createFlightAir(scene);
+const crash = createCrash({
+  scene, flight, character, flightRig, chaseCamera, windFx, skyClouds, flightCliffs, cliffAssets, audio,
+  fadeEl, dreadEl, canvas, setLids, bodyMask: BODY_MASK, setFlailClip, placeFlyer,
+});
 
 // Debug switches for the time-lapse: ?phase=0.25 freezes it (0 noon,
 // 0.25 sunset, 0.5 midnight), ?sky=0 drops the SkyDome, ?clip=40 moves the
@@ -379,10 +471,21 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     startAwakening();
   }
+  if (e.code === 'KeyI' && (state === 'fly' || state === 'menu')) {
+    crashNow = true;
+    if (state === 'menu') {
+      menuEl.classList.remove('show');
+      menuEl.setAttribute('aria-hidden', 'true');
+      startFlyDirect();
+    }
+  }
 });
 window.addEventListener('keyup', (e) => keys.delete(e.code));
 startEl.addEventListener('click', () => {
   if (state === 'menu') startAwakening();
+});
+startEl.addEventListener('pointerenter', () => {
+  if (state === 'menu') audio.play('ui-hover');
 });
 const axis = (neg, pos) => (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0);
 
@@ -606,6 +709,9 @@ function curve(u, to, out) {
 }
 
 function startAwakening() {
+  audio.unlock();
+  audio.play('ui-start');
+  audio.play('approach-swell', { delay: 0.15, cut: true });
   menuEl.classList.remove('show');
   menuEl.classList.add('leaving');
   menuEl.setAttribute('aria-hidden', 'true');
@@ -740,6 +846,7 @@ function startTurn() {
   moveFrom.pitch = f.pitch;
   measureTurnArc();
   timeOfDay.settleAt(goldenPhase, SKY.seconds);
+  audio.play('turn-swell', { cut: true });
   setState('turn');
 }
 
@@ -767,7 +874,10 @@ function updateDawn(dt) {
   camPos.set(viewPos.x + fbm1(driftTime, 94) * m, viewPos.y + fbm1(driftTime, 95) * m, viewPos.z);
   lookAlong(viewYaw, VIEW.pitchDeg);
   applyCamera(dt, VIEW.sway);
-  if (pulseTime < 0 && timeOfDay.sunElevation >= SKY.goldenElevation - PULSE.triggerBelow) pulseTime = 0;
+  if (pulseTime < 0 && timeOfDay.sunElevation >= SKY.goldenElevation - PULSE.triggerBelow) {
+    pulseTime = 0;
+    audio.play('pulse', { cut: true }); // the gong, struck as the ring leaves the sun
+  }
   if (pulseTime >= 0 && pulseTime >= PULSE.seconds / 2 + BACK_OUT.after) {
     snapshotCamera();
     setState('backout');
@@ -885,8 +995,19 @@ function updateAir(dt) {
   const el = timeOfDay.sunElevation;
   const camera = scene.cameraEntity;
   celestial.update(dt, camera);
-  ambience.update(dt, camera, { night: smooth(3, -10, el), light: smooth(-6, 10, el), wind: gusty, windDir });
+  const early = ['menu', 'approach', 'portrait', 'woken', 'wokenWide', 'wokenEnd'].includes(state);
+  const goneBy = PORTRAIT.panAt - SCATTER.before;
+  const going = state === 'portrait' && wakeTime >= 0 ? smooth(goneBy - SCATTER.seconds, goneBy, wakeTime) : 0;
+  const fireflies = early ? 1 - going : 0;
+  const drift = early ? 1 - going : state === 'turn' ? 0 : state === 'dawn' ? smooth(0, SCATTER.returnSeconds, stateTime) : 1;
+  ambience.update(dt, camera, { night: smooth(3, -10, el), light: smooth(-6, 10, el), wind: gusty, windDir, fireflies, drift });
   fireflyLight.update();
+  // Its sound: the night wind, giving way to the dawn birds; the wind, which
+  // never drops below a strong breeze; the rumble on the edge.
+  audio.level('night-bed', smooth(3, -10, el));
+  audio.level('dawn-bed', smooth(-6, 10, el), 2);
+  audio.level('island-wind', Math.min(0.5 + 1.5 * gusty, 1));
+  audio.level('rumble', rumble, 0.1);
 }
 
 const tmpVec = new Vec3();
@@ -919,6 +1040,18 @@ function updateIslandSequence(dt) {
 
     case 'backout':
       updateBackOut(dt);
+      break;
+
+    case 'woken':
+      updateWoken(dt);
+      break;
+
+    case 'wokenWide':
+      updateWokenWide(dt);
+      break;
+
+    case 'wokenEnd':
+      updateWokenEnd(dt);
       break;
 
     // On the edge, her back to us; the rumble builds, and she goes.
@@ -1040,6 +1173,8 @@ function startLaunch() {
   wipeAlong = windFx.placeWipe(flight, LAUNCH.wipeAhead);
   swapped = false;
   onOwnLayer = false;
+  cloudSounded = false;
+  audio.play('launch', { cut: true });
   setState('launch');
 }
 
@@ -1065,11 +1200,14 @@ function updateLaunch(dt) {
   chaseCamera.update(dt, flight, { apply: false });
   launchShot.update(dt, flight);
   windFx.update(dt, flight, scene.cameraEntity);
+  updateFlightSound(dt);
   if (!swapped) {
     timeOfDay.update(dt);
     updateAir(dt);
   }
   if (swapped) {
+    skyClouds.update(dt, flight, scene.cameraEntity);
+    flightCliffs.update(dt, flight, scene.cameraEntity);
     flightScenery.update(dt, flight, scene.cameraEntity);
     flightAir.update(dt, flight, scene.cameraEntity);
   }
@@ -1082,8 +1220,13 @@ function updateLaunch(dt) {
     onOwnLayer = true;
   }
 
-  // Inside the cloud bank, the island becomes the sky.
+  // Inside the cloud bank, the island becomes the sky. The bank's rush
+  // peaks 1.25 s into its sound, as the camera crosses its middle.
   updateFlash();
+  if (!cloudSounded && camAlong >= wipeAlong - s.speed * 1.25) {
+    cloudSounded = true;
+    audio.play('cloud-pass', { cut: true });
+  }
   if (!swapped && camAlong >= wipeAlong) swapToSky();
 
   if (launchShot.done && swapped && Math.abs(climbVel) < 0.3) {
@@ -1097,6 +1240,8 @@ function updateLaunch(dt) {
     setState('fly');
   }
 }
+
+let cloudSounded = false;
 
 // A soft white bloom peaking where the camera crosses the middle of the bank.
 let flashing = false;
@@ -1117,10 +1262,14 @@ function swapToSky() {
   updateSkyGrade(0);
   celestial.enabled = false;
   ambience.enabled = false;
+  for (const name of ['night-bed', 'dawn-bed', 'island-wind', 'rumble']) audio.level(name, 0, 0.6);
   sanctuary.entity.enabled = false;
   sky.entity.enabled = true;
   sky.entity.setLocalEulerAngles(0, flight.state.headingDeg - SKY_VIEW_DEG, 0);
   skyAnchor.copy(flight.state.pos);
+  skyClouds.enabled = true;
+  skyClouds.reset(flight, scene.cameraEntity);
+  flightCliffs.reset(flight);
   flightScenery.reset(flight);
   flightAir.reset(flight);
   swapped = true;
@@ -1151,17 +1300,22 @@ function updateSkyGrade(dt) {
     skyGrade.clouds = settled;
     const { warm, sky: cool } = CLOUD_COLORS;
     const mix = (a, b) => a.map((v, i) => v + (b[i] - v) * settled);
-    windFx.setColors(mix(warm.base, cool.base), mix(warm.top, cool.top));
+    for (const clouds of [windFx, skyClouds]) clouds.setColors(mix(warm.base, cool.base), mix(warm.top, cool.top));
   }
   sky.setTint(skyGrade.intensity * g.share * k, skyGrade.color);
   character.setTint(skyGrade.intensity * g.herShare * k, skyGrade.color);
 }
 
 // A phone held upright gets index.html's #rotate over everything, and the
-// scene waits for it to be turned.
+// scene waits for it to be turned. The sound waits with it, and while the
+// page is hidden.
 const upright = matchMedia('(orientation: portrait) and (pointer: coarse)');
-const holdForUpright = () => { scene.app.timeScale = upright.matches ? 0 : 1; };
+const holdForUpright = () => {
+  scene.app.timeScale = upright.matches ? 0 : 1;
+  audio.held = upright.matches || document.hidden;
+};
 upright.addEventListener('change', holdForUpright);
+document.addEventListener('visibilitychange', holdForUpright);
 holdForUpright();
 
 scene.app.on('update', (dt) => {
@@ -1170,14 +1324,17 @@ scene.app.on('update', (dt) => {
   if (swapped) updateSkyGrade(dt);
   if (state === 'launch') updateLaunch(dt);
   else if (state === 'fly') updateFlight(dt);
+  else if (state === 'crash') updateCrash(dt);
   else updateIslandSequence(dt);
+  audio.update(dt);
 });
 
 // ── Hold to skip ──────────────────────────────────────────────────────────
 
-// Holding any key or the pointer through a cutscene brings up "Hold to skip";
-// held for `holdSeconds` it cuts through black to the flight. Let go and the
-// ring drains, and the prompt lingers a moment before it goes.
+// Holding the mouse button or a finger down through a cutscene (not a key)
+// brings up "Hold to skip"; held for `holdSeconds` it cuts through black to
+// the flight. Let go and the ring drains, and the prompt lingers a moment
+// before it goes.
 const SKIP = { holdSeconds: 1.2, lingerSeconds: 0.8, blackSeconds: 0.45 };
 const CUTSCENE = new Set(['approach', 'portrait', 'turn', 'dawn', 'backout', 'brink', 'vanish', 'drop', 'hold', 'launch']);
 let skipHeld = false;
@@ -1185,15 +1342,14 @@ let skipHold = 0; // seconds held
 let skipLinger = 0;
 let skipping = false;
 
-function pressSkip(e) {
-  // Not a held-down key repeating, nor the press that started the story.
-  if (e.repeat || !CUTSCENE.has(state) || (state === 'approach' && stateTime === 0)) return;
+function pressSkip() {
+  // Not the click that started the story.
+  if (!CUTSCENE.has(state) || (state === 'approach' && stateTime === 0)) return;
   skipHeld = true;
 }
 const releaseSkip = () => (skipHeld = false);
-window.addEventListener('keydown', pressSkip);
 window.addEventListener('pointerdown', pressSkip);
-for (const type of ['keyup', 'pointerup', 'pointercancel', 'blur']) window.addEventListener(type, releaseSkip);
+for (const type of ['pointerup', 'pointercancel', 'blur']) window.addEventListener(type, releaseSkip);
 
 function updateSkip(dt) {
   const on = skipHeld && CUTSCENE.has(state) && !skipping;
@@ -1206,6 +1362,8 @@ function updateSkip(dt) {
 
 function skipToFlight() {
   skipping = true;
+  audio.play('ui-skip');
+  audio.cut(SKIP.blackSeconds);
   skipHeld = false;
   curtainEl.classList.add('quick');
   curtainEl.classList.remove('up');
@@ -1253,9 +1411,16 @@ function showAreaTitle() {
   areaEl.classList.remove('play');
   void areaEl.offsetWidth; // so the animation runs from the start
   areaEl.classList.add('play');
+  audio.play('area-reveal');
 }
 
 function updateFlight(dt) {
+  if (stateTime >= CRASH_AFTER || crashNow) {
+    crashNow = false;
+    startCrash();
+    return;
+  }
+  flightCliffs.stopAt(flight, flight.state.speed * (CRASH_AFTER - stateTime) + crash.clearFrom - CRASH.clearMargin);
   if (!areaShown && stateTime >= AREA_TITLE.after) showAreaTitle();
   if (!controlsShown && stateTime >= AREA_TITLE.after + AREA_TITLE.seconds - AREA_TITLE.controlsBefore) showControls();
   const { turn, climb } = steering(dt);
@@ -1268,9 +1433,192 @@ function updateFlight(dt) {
   flightRig.update(dt, flight);
   chaseCamera.update(dt, flight);
   windFx.update(dt, flight, scene.cameraEntity);
+  skyClouds.update(dt, flight, scene.cameraEntity);
+  flightCliffs.update(dt, flight, scene.cameraEntity);
   flightScenery.update(dt, flight, scene.cameraEntity);
   flightAir.update(dt, flight, scene.cameraEntity);
   if (flashing) updateFlash();
+  updateFlightSound(dt);
+}
+
+// The air as she flies: the rush with her speed, a whistle as she banks,
+// climbs or dives, buffeting in rough air, her clothes flapping as she
+// flails, and the open sky once she is in it. A sharp roll into a bank
+// whooshes, toward the side she rolls to, louder the further it will go;
+// now and then a flock calls when one is near.
+const BANK_WHOOSH = { degPerSecond: 25, wait: 0.8 };
+const BIRD_CALLS = { withinMetres: 70, every: [6, 16] };
+let bankSwinging = false;
+let bankWhooshWait = 0;
+let birdWait = 4;
+function updateFlightSound(dt) {
+  const s = flight.state;
+  const o = flight.options;
+  audio.level('flight-wind', 0.45 + 0.55 * Math.min(s.speed / o.speed, 1));
+  audio.level('flight-whistle', (0.6 * Math.abs(s.vel.y)) / o.maxClimb + (0.5 * Math.abs(s.bankDeg)) / o.maxBankDeg);
+  audio.level('turbulence', s.pocket, 0.3);
+  audio.level('cloth-flap', 0.2 + 0.8 * s.flail, 0.3);
+  audio.level('sky-bed', swapped ? 1 : 0, 2);
+
+  bankWhooshWait -= dt;
+  const swing = Math.abs(s.bankVel);
+  if (!bankSwinging && swing > BANK_WHOOSH.degPerSecond && bankWhooshWait <= 0) {
+    const reach = Math.min(Math.abs(s.targetBankDeg - s.bankDeg) / (1.5 * o.maxBankDeg), 1);
+    audio.play('bank-whoosh', { gain: 0.3 + 0.7 * reach, pan: 0.4 * Math.sign(s.bankVel) });
+    bankWhooshWait = BANK_WHOOSH.wait;
+  }
+  bankSwinging = swing > 0.6 * BANK_WHOOSH.degPerSecond;
+
+  birdWait -= dt;
+  const flock = flightScenery.nearestFlock;
+  if (birdWait <= 0 && flock.distance < BIRD_CALLS.withinMetres) {
+    audio.play('birds-distant', { gain: smooth(BIRD_CALLS.withinMetres, 25, flock.distance), pan: -0.6 * flock.side });
+    const [a, b] = BIRD_CALLS.every;
+    birdWait = a + Math.random() * (b - a);
+  }
+}
+
+// The storm, the cliff and the fall (crash.js). Her controls go and the
+// bars come in; everything that moves with her runs on the sequence's time,
+// slowed through the blow, and the flight's sound until the black.
+function startCrash() {
+  steered = true;
+  controlsEl.classList.remove('show');
+  controlsEl.setAttribute('aria-hidden', 'true');
+  document.body.classList.add('cinema');
+  crash.start(steerInput);
+  setState('crash');
+}
+
+function updateCrash(dt) {
+  const cdt = crash.update(dt);
+  if (crash.done) {
+    wakeUp();
+    return;
+  }
+  windFx.update(cdt, flight, scene.cameraEntity);
+  skyClouds.update(cdt, flight, scene.cameraEntity);
+  flightCliffs.update(cdt, flight, scene.cameraEntity);
+  flightScenery.update(cdt, flight, scene.cameraEntity);
+  flightAir.update(cdt, flight, scene.cameraEntity);
+  if (crash.phase !== 'out') updateFlightSound(cdt);
+}
+
+// ── Waking: back under the tree ───────────────────────────────────────────
+
+const wakeSide = new Vec3(-faceDir.z, 0, faceDir.x); // her right
+let wokeTime = 0;
+let wakeSnap = 0; // frames left to put the look straight on her face
+let idled = false;
+
+function wakeUp() {
+  crash.finish();
+  // The island at night again, and none of the sky.
+  sky.entity.enabled = false;
+  for (const layer of [windFx, skyClouds, flightCliffs, flightScenery, flightAir]) layer.enabled = false;
+  sanctuary.entity.enabled = true;
+  swapped = false;
+  timeOfDay.enable();
+  timeOfDay.setPhase(SKY.menuPhase);
+  timeOfDay.setSpeed(0);
+  celestial.enabled = true;
+  ambience.enabled = true;
+  setGlow(SEAT.glow);
+  // Her, standing where she dozed.
+  flightRig.enabled = false;
+  character.stopLayer('flail');
+  character.setLayers([scene.envLayerId]);
+  pos.copy(seat);
+  headingDeg = SEAT.headingDeg;
+  placeCharacter();
+  character.playAnimation('breathe', { loop: false });
+  character.playbackSpeed = 1;
+  wokeTime = 0;
+  // Her bones only move once she is in view, and they still have her in
+  // the sky: so the look starts where her face will be, and goes onto it
+  // once they have caught up.
+  faceLook.set(seat.x + faceDir.x * 0.1, seat.y + WAKE_UP.faceHeight, seat.z + faceDir.z * 0.1);
+  wakeSnap = 3;
+  idled = false;
+  setLids(1);
+  setState('woken');
+}
+
+// Her eyes opening, and the world slowly coming into focus.
+function openEyes() {
+  const keys = WAKE_UP.lids;
+  let i = 0;
+  while (i < keys.length - 2 && wokeTime > keys[i + 1][0]) i++;
+  const [t0, a] = keys[i], [t1, b] = keys[i + 1];
+  setLids(a + (b - a) * smooth(t0, t1, wokeTime));
+  const blur = WAKE_UP.blur.px * (1 - smooth(0, WAKE_UP.blur.seconds, wokeTime));
+  canvas.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : '';
+}
+
+// Close on her face, following it, and backing slowly out.
+function updateWoken(dt) {
+  const w = WAKE_UP, c = w.close, b = w.backOut;
+  wokeTime += dt;
+  if (facePoint(lookGoal).distance(seat) < 3) {
+    if (wakeSnap > 0) {
+      wakeSnap--;
+      faceLook.copy(lookGoal);
+    } else {
+      followFace(dt);
+    }
+  }
+  const out = smoother(Math.min(Math.max((wokeTime - b.from) / b.seconds, 0), 1));
+  camPos.copy(faceDir).mulScalar(c.metres + b.metres * out).add(faceLook).add(tmpVec.copy(wakeSide).mulScalar(c.side));
+  camPos.y = faceLook.y + c.up + b.rise * out;
+  camPos.add(breathe(dt));
+  const f = aim(camPos, faceLook);
+  lookAlong(f.yaw, f.pitch);
+  camFov = c.fov + (b.fov - c.fov) * out;
+  applyCamera(dt, VIEW.sway);
+  openEyes();
+  if (wokeTime >= w.wideAt) setState('wokenWide');
+}
+
+// Her whole, from in front, for the rest of it.
+function updateWokenWide(dt) {
+  const w = WAKE_UP.wide;
+  wokeTime += dt;
+  const t = wokeTime / MENU_CAMERA.wander.seconds;
+  camPos.set(w.position.x + fbm1(t, 61) * w.wander, w.position.y + fbm1(t, 62) * w.wander * 0.3, w.position.z + fbm1(t, 63) * w.wander);
+  const a = aim(camPos, tmpVec.set(seat.x, seat.y + w.lookUp, seat.z));
+  lookAlong(a.yaw, a.pitch);
+  camFov = w.fov;
+  applyCamera(dt, MENU_CAMERA.sway);
+  settle();
+  if (wokeTime >= WAKE_UP.endAt) {
+    endFrom = wokeTime;
+    setState('wokenEnd');
+  }
+}
+
+// In low from her side for the deep breath, pushing slowly in.
+let endFrom = 0;
+function updateWokenEnd(dt) {
+  const e = WAKE_UP.end;
+  wokeTime += dt;
+  followFace(dt);
+  const push = smoother(Math.min((wokeTime - endFrom) / e.seconds, 1)) * e.push;
+  camPos.copy(faceDir).mulScalar(e.ahead - push).add(seat).add(tmpVec.copy(wakeSide).mulScalar(e.side));
+  camPos.y = seat.y + e.height;
+  camPos.add(breathe(dt));
+  const a = aim(camPos, tmpVec.copy(faceLook).sub(tmpPos.set(0, e.lookDown, 0)));
+  lookAlong(a.yaw, a.pitch);
+  camFov = e.fov;
+  applyCamera(dt, VIEW.sway);
+  settle();
+}
+
+// Into the standing idle as the clip ends.
+function settle() {
+  if (!idled && wokeTime >= WAKE_UP.idleAt) {
+    idled = true;
+    character.crossfadeTo('idle', { duration: 1.5, loop: true });
+  }
 }
 
 // How much the flail clip drives her over the glide pose, 0..1.
@@ -1302,7 +1650,10 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
   window.__demo = {
     flight,
     character,
+    seatPose,
     windFx,
+    skyClouds,
+    flightCliffs,
     flightScenery,
     flightAir,
     timeOfDay,
@@ -1317,11 +1668,13 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
     app: scene.app,
     start: () => state === 'menu' && startAwakening(),
     wind: () => wind,
+    audio,
+    crash,
   };
 }
 
 const query = new URLSearchParams(location.search);
-if (query.get('fly') === '1') startFlyDirect();
+if (query.get('fly') === '1' || crashNow) startFlyDirect();
 else {
   startMenu();
   if (query.get('start') === '1') startAwakening();

@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Waking Above the Clouds</title>
+    <title>Dream Beyond the Sky</title>
+    <link rel="icon" type="image/png" href="%BASE_URL%favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -52,8 +53,9 @@
         #rotate { display: flex; }
       }
 
-      /* ── Hold to skip: shows while a key or the pointer is held during a
-         cutscene, its ring filling until the scene skips to the flight. ── */
+      /* ── Hold to skip: shows while the pointer (mouse or finger) is held
+         during a cutscene, its ring filling until the scene skips to the
+         flight. ── */
       #skip {
         position: fixed; right: clamp(20px, 4vw, 56px); bottom: calc(7vh + 18px); z-index: 4;
         display: flex; align-items: center; gap: 10px; pointer-events: none;
@@ -122,6 +124,21 @@
         background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
       }
       @keyframes grain { 0% { transform: translate(0, 0); } 25% { transform: translate(-3%, 2%); } 50% { transform: translate(2%, -3%); } 75% { transform: translate(-2%, -1%); } }
+      /* The fall's dread (crash.js): the dark closing in from the frame's
+         edges, its clear middle (--clear) narrowing, on a long soft falloff
+         so it never shows an edge. */
+      #dread {
+        position: fixed; inset: 0; pointer-events: none; opacity: 0; --clear: 60%;
+        background: radial-gradient(ellipse farthest-corner at 50% 50%, transparent var(--clear),
+          rgba(24, 2, 6, 0.3) calc(var(--clear) + (100% - var(--clear)) * 0.4),
+          rgba(14, 1, 4, 0.7) calc(var(--clear) + (100% - var(--clear)) * 0.75), rgba(6, 0, 2, 0.92) 100%);
+      }
+      /* Black over everything but the curtain, opening from the middle as
+         two straight edges parting: --shut 0 open, 1 shut. */
+      #lids { position: fixed; inset: 0; z-index: 2; pointer-events: none; --shut: 0; }
+      #lids .lid { position: absolute; left: 0; right: 0; height: 50.5vh; background: #000; }
+      #lids .lid.top { top: 0; transform: translateY(calc((var(--shut) - 1) * 100%)); }
+      #lids .lid.bottom { bottom: 0; transform: translateY(calc((1 - var(--shut)) * 100%)); }
       /* Over the white flash, so the bars stay black through it. */
       .bar { position: fixed; left: 0; right: 0; z-index: 2; height: 7vh; background: #050508; pointer-events: none; transition: transform 2.4s cubic-bezier(0.6, 0, 0.2, 1); }
       .bar.top { top: 0; transform: translateY(-100%); }
@@ -285,13 +302,15 @@
     </div>
     <div id="vignette"></div>
     <div id="grain"></div>
+    <div id="dread"></div>
     <div class="bar top"></div>
     <div class="bar bottom"></div>
+    <div id="lids" aria-hidden="true"><div class="lid top"></div><div class="lid bottom"></div></div>
     <div id="menu" aria-hidden="true">
       <div class="panel">
-        <h1 class="title-v" lang="zh-Hans">醒于云端</h1>
+        <h1 class="title-v" lang="zh-Hans">梦越苍穹</h1>
         <div class="side">
-          <div class="title-en">Waking Above<br /> the Clouds</div>
+          <div class="title-en">Dream Beyond<br /> the Sky</div>
           <div class="actions">
             <button id="start" type="button"><span class="kanji" lang="zh-Hans">启</span>Start</button>
             <div class="foot">Press Enter</div>
@@ -299,10 +318,10 @@
         </div>
       </div>
     </div>
-    <div id="area" aria-label="Where Clouds Rest — 云栖之境">
-      <div class="area-en">Where Clouds Rest</div>
+    <div id="area" aria-label="Where Clouds Sleep — 云眠之处">
+      <div class="area-en">Where Clouds Sleep</div>
       <div class="area-rule"><span></span></div>
-      <div class="area-zh" lang="zh-Hans">云栖之境</div>
+      <div class="area-zh" lang="zh-Hans">云眠之处</div>
     </div>
     <div id="skip" aria-hidden="true">
       <svg viewBox="0 0 22 22"><circle class="track" cx="11" cy="11" r="9" /><circle class="fill" cx="11" cy="11" r="9" /></svg>

@@ -10,8 +10,13 @@ import { fbm1 } from './noise.js';
 // twists with the roll itself; the outside arm extends like a wing while the
 // inside one tucks to the hip; the inside knee bends to steer while the
 // outside leg stays long; and the legs, loosest of all, follow through and
-// settle. Each part is its own damped spring, and the different stiffnesses
-// are what make the motion overlap instead of moving as one block.
+// settle. Diving she streamlines - arms swept back to her hips, legs long,
+// head down; climbing she opens up and reaches ahead, back arched, knees
+// trailing - and as a climb or dive starts or stops the legs swing with the
+// pull of it. The airflow keeps everything alive: elbows soft, and hands,
+// forearms, calves and feet fluttering in it, more in rough air. Each part
+// is its own damped spring, and the different stiffnesses are what make the
+// motion overlap instead of moving as one block.
 //
 // Offsets are rotations about her own standing-frame axes - up the spine (+Y),
 // out of her belly (+Z), out of her left side (+X) - so they mean the same
@@ -44,6 +49,21 @@ export const RIG_DEFAULTS = {
   straightenKneeDeg: 10, // outside leg stays long
   legSwingDeg: 9, // both legs swing out of the turn
   gustArmDeg: 1.6, // arm correction per m/s^2 of sideways gust
+  // Climbing and diving, at the flight's full climb rate.
+  diveArmsBackDeg: 34, // arms sweep back toward her hips
+  diveArmsInDeg: 16, // and close in to her sides
+  diveHeadDeg: 16, // head drops to look down the dive
+  diveKneeDeg: -14, // legs straighten and stream out behind
+  climbArmsForwardDeg: 6, // arms come a little under her
+  climbArmsOutDeg: 28, // and open wide, up toward her head, catching the air
+  climbArchDeg: -4, // per spine bone, chest lifted
+  climbKneeDeg: 16, // knees trail
+  pullLegDeg: 3.5, // legs swing per m/s^2 of change in climb, lagging it
+  // Soft elbows, bending more as an arm tucks in.
+  elbowDeg: 14,
+  tuckElbowDeg: 26,
+  // Flutter in the airflow, degrees in calm air; rough air multiplies it.
+  flutter: { hz: 2.3, hand: 3, forearm: 2, calf: 3, foot: 5, pocket: 2.5 },
   // Flailing (flight.state.flail), at full flail: arms windmilling, legs
   // kicking, body and head thrashing. Noise, not springs, so it stays wild.
   // Under a flailing clip (clipWeight) only this share of it stays on top.
@@ -63,6 +83,7 @@ export const RIG_DEFAULTS = {
     hands: [30, 8],
     knees: [14, 5],
     legs: [8, 2.6],
+    pull: [10, 2.2], // loose, so a pull-up swings the legs and they settle
   },
 };
 
@@ -82,6 +103,7 @@ export function createFlightRig(character, options = {}) {
     neck: bone('neck_01'),
     head: bone('head'),
     upperarm: { l: bone('upperarm_l'), r: bone('upperarm_r') },
+    lowerarm: { l: bone('lowerarm_l'), r: bone('lowerarm_r') },
     hand: { l: bone('hand_l'), r: bone('hand_r') },
     thigh: { l: bone('thigh_l'), r: bone('thigh_r') },
     calf: { l: bone('calf_l'), r: bone('calf_r') },
@@ -103,7 +125,15 @@ export function createFlightRig(character, options = {}) {
     kneeL: spring('knees'),
     kneeR: spring('knees'),
     legSwing: spring('legs'),
+    climbArms: spring('arms'), // + reaches ahead, - sweeps back
+    climbOut: spring('arms'),
+    climbHead: spring('head'),
+    climbArch: spring('torso'),
+    climbKnee: spring('knees'),
+    pull: spring('pull'),
   };
+  let lastClimb = 0;
+  let climbAccel = 0;
   const step = (c, target, dt) => {
     const [k, d] = o.springs[c.kind];
     c.w += (k * (target - c.v) - d * c.w) * dt;
@@ -114,6 +144,8 @@ export function createFlightRig(character, options = {}) {
   let time = 0;
   // This frame's flailing offsets, in degrees, added straight onto the pose.
   const fl = { outL: 0, outR: 0, swingL: 0, swingR: 0, kneeL: 0, kneeR: 0, legL: 0, legR: 0, twist: 0, head: 0 };
+  // And the airflow's flutter on each part.
+  const fx = { handL: 0, handR: 0, foreL: 0, foreR: 0, calfL: 0, calfR: 0, footL: 0, footR: 0 };
   // How much a hand-animated clip drives her instead of the glide pose: at 1
   // the clip plays as it is, at 0 the glide pose is fully on.
   let clipWeight = 0;
@@ -150,32 +182,37 @@ export function createFlightRig(character, options = {}) {
     const breath = Math.sin(time * Math.PI * 2 * o.breathHz) * o.breathDeg * g;
 
     for (const i of b.spine) {
-      rotate(pose, i, AXES.left, o.spineArchDeg * g);
+      rotate(pose, i, AXES.left, (o.spineArchDeg + ch.climbArch.v) * g);
       rotate(pose, i, AXES.spine, ch.twist.v * g + fl.twist);
       rotate(pose, i, AXES.belly, -ch.bend.v * g);
     }
-    rotate(pose, b.neck, AXES.left, o.headUpDeg * 0.4 * g);
-    rotate(pose, b.head, AXES.left, o.headUpDeg * 0.6 * g);
+    rotate(pose, b.neck, AXES.left, (o.headUpDeg + ch.climbHead.v) * 0.4 * g);
+    rotate(pose, b.head, AXES.left, (o.headUpDeg + ch.climbHead.v) * 0.6 * g);
     rotate(pose, b.neck, AXES.spine, (ch.headLook.v * g + fl.head) * 0.4);
     rotate(pose, b.head, AXES.spine, (ch.headLook.v * g + fl.head) * 0.6);
 
     // Left arm opens with +belly, right with -belly; both reach back with +left.
-    rotate(pose, b.upperarm.l, AXES.belly, (o.armsOutDeg + ch.armOutL.v) * g + fl.outL);
-    rotate(pose, b.upperarm.r, AXES.belly, -((o.armsOutDeg + ch.armOutR.v) * g + fl.outR));
-    rotate(pose, b.upperarm.l, AXES.left, (o.armsBackDeg + ch.armBackL.v) * g + breath + fl.swingL);
-    rotate(pose, b.upperarm.r, AXES.left, (o.armsBackDeg + ch.armBackR.v) * g + breath + fl.swingR);
-    rotate(pose, b.hand.l, AXES.left, ch.handL.v * g);
-    rotate(pose, b.hand.r, AXES.left, ch.handR.v * g);
+    rotate(pose, b.upperarm.l, AXES.belly, (o.armsOutDeg + ch.armOutL.v + ch.climbOut.v) * g + fl.outL);
+    rotate(pose, b.upperarm.r, AXES.belly, -((o.armsOutDeg + ch.armOutR.v + ch.climbOut.v) * g + fl.outR));
+    rotate(pose, b.upperarm.l, AXES.left, (o.armsBackDeg + ch.armBackL.v - ch.climbArms.v) * g + breath + fl.swingL);
+    rotate(pose, b.upperarm.r, AXES.left, (o.armsBackDeg + ch.armBackR.v - ch.climbArms.v) * g + breath + fl.swingR);
+    // Elbows soft, the forearms toward her belly; more as the arm tucks.
+    const tuckL = Math.max(-ch.armOutL.v / o.tuckInDeg, 0);
+    const tuckR = Math.max(-ch.armOutR.v / o.tuckInDeg, 0);
+    rotate(pose, b.lowerarm.l, AXES.left, -(o.elbowDeg + tuckL * o.tuckElbowDeg) * g + fx.foreL);
+    rotate(pose, b.lowerarm.r, AXES.left, -(o.elbowDeg + tuckR * o.tuckElbowDeg) * g + fx.foreR);
+    rotate(pose, b.hand.l, AXES.left, ch.handL.v * g + fx.handL);
+    rotate(pose, b.hand.r, AXES.left, ch.handR.v * g + fx.handR);
 
     // Legs: swing out of the turn together, knees steer, toes pointed.
     rotate(pose, b.thigh.l, AXES.belly, -ch.legSwing.v * g);
     rotate(pose, b.thigh.r, AXES.belly, -ch.legSwing.v * g);
-    rotate(pose, b.thigh.l, AXES.left, breath * 0.3 + fl.legL);
-    rotate(pose, b.thigh.r, AXES.left, -breath * 0.3 + fl.legR);
-    rotate(pose, b.calf.l, AXES.left, (o.kneeBendDeg + ch.kneeL.v) * g + fl.kneeL);
-    rotate(pose, b.calf.r, AXES.left, (o.kneeBendDeg + ch.kneeR.v) * g + fl.kneeR);
-    rotate(pose, b.foot.l, AXES.left, o.footPointDeg * g);
-    rotate(pose, b.foot.r, AXES.left, o.footPointDeg * g);
+    rotate(pose, b.thigh.l, AXES.left, breath * 0.3 + ch.pull.v * g + fl.legL);
+    rotate(pose, b.thigh.r, AXES.left, -breath * 0.3 + ch.pull.v * g * 0.85 + fl.legR);
+    rotate(pose, b.calf.l, AXES.left, (o.kneeBendDeg + ch.kneeL.v + ch.climbKnee.v) * g + fl.kneeL + fx.calfL);
+    rotate(pose, b.calf.r, AXES.left, (o.kneeBendDeg + ch.kneeR.v + ch.climbKnee.v) * g + fl.kneeR + fx.calfR);
+    rotate(pose, b.foot.l, AXES.left, o.footPointDeg * g + fx.footL);
+    rotate(pose, b.foot.r, AXES.left, o.footPointDeg * g + fx.footR);
   };
 
   return {
@@ -227,6 +264,37 @@ export function createFlightRig(character, options = {}) {
       step(ch.kneeL, insideL * o.steerKneeDeg - insideR * o.straightenKneeDeg, dt);
       step(ch.kneeR, insideR * o.steerKneeDeg - insideL * o.straightenKneeDeg, dt);
       step(ch.legSwing, roll * o.legSwingDeg, dt);
+
+      // Climbing (+) or diving (-), as a share of the full rate; and how fast
+      // that is changing, whose pull swings the legs: they lag it, toward
+      // the ground (her belly) as she pulls up, toward the sky as she tips over.
+      const climb = (s.climbVel ?? 0) / (flight.options.maxClimb ?? 5);
+      const up = Math.max(climb, 0);
+      const down = Math.max(-climb, 0);
+      const accel = dt > 0 ? ((s.climbVel ?? 0) - lastClimb) / dt : 0;
+      lastClimb = s.climbVel ?? 0;
+      climbAccel += (accel - climbAccel) * (1 - Math.exp(-8 * dt));
+      step(ch.climbArms, up * o.climbArmsForwardDeg - down * o.diveArmsBackDeg, dt);
+      step(ch.climbOut, up * o.climbArmsOutDeg - down * o.diveArmsInDeg, dt);
+      step(ch.climbHead, down * o.diveHeadDeg, dt);
+      step(ch.climbArch, up * o.climbArchDeg, dt);
+      step(ch.climbKnee, up * o.climbKneeDeg + down * o.diveKneeDeg, dt);
+      step(ch.pull, -climbAccel * o.pullLegDeg, dt);
+
+      // The airflow: quick small flutters, each part on its own noise, out
+      // of step with the others; rough air and gusts shake them harder.
+      const f = o.flutter;
+      const rough = (1 + s.pocket * f.pocket + s.gust.length() * 0.15) * (1 - clipWeight);
+      const ff = time * f.hz;
+      const q = (seed, rate, deg) => fbm1(ff * rate, seed) * deg * rough;
+      fx.handL = q(201, 1.7, f.hand);
+      fx.handR = q(202, 1.6, f.hand);
+      fx.foreL = q(203, 1.1, f.forearm);
+      fx.foreR = q(204, 1.2, f.forearm);
+      fx.calfL = q(205, 0.9, f.calf);
+      fx.calfR = q(206, 1, f.calf);
+      fx.footL = q(207, 1.9, f.foot);
+      fx.footR = q(208, 1.8, f.foot);
     },
   };
 }
