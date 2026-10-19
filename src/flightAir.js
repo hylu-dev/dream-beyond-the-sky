@@ -2,6 +2,7 @@ import { BLEND_ADDITIVEALPHA, CULLFACE_NONE, Color, Entity, Mesh, MeshInstance, 
 import { smooth } from './sprites.js';
 
 const random = (a, b) => a + Math.random() * (b - a);
+const MOTE_CORNERS = [[-1, 0], [0, 1.8], [1, 0], [0, -1.8]];
 
 // Thin, curved filaments and little sunlit airborne seeds. A single dynamic
 // mesh keeps the extra atmosphere to one draw call. Positions are anchored in
@@ -125,7 +126,7 @@ export function createFlightAir(scene) {
         const distance = tmp.copy(m.pos).sub(cam).length();
         const alpha = (0.24 + intensity * 0.25) * smooth(0, 0.8, m.age) * smooth(0.7, 4, distance) * smooth(65, 35, distance);
         vertex(n++, m.pos.x, m.pos.y, m.pos.z, alpha, true);
-        for (const [x, y] of [[-1, 0], [0, 1.8], [1, 0], [0, -1.8]]) {
+        for (const [x, y] of MOTE_CORNERS) {
           vertex(n++, m.pos.x + (right.x * x + up.x * y) * m.size,
             m.pos.y + (right.y * x + up.y * y) * m.size,
             m.pos.z + (right.z * x + up.z * y) * m.size, 0, true);

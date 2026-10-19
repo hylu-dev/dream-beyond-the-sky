@@ -48,7 +48,7 @@ class FakeContext {
   createDynamicsCompressor() { const n = new Node(); n.threshold = new Param(); n.ratio = new Param(); return n; }
   createBufferSource() {
     const n = new Node();
-    n.start = (t) => events.push(['start', n.buffer.name, t, n]);
+    n.start = (t, offset = 0) => { n.offset = offset; events.push(['start', n.buffer.name, t, n]); };
     n.stop = (t) => (n.stopAt = t);
     return n;
   }
@@ -152,6 +152,30 @@ audio.stop('launch', 0.2);
 check(Math.abs(launch.stopAt - (ctx.currentTime + 0.2)) < 1e-6, 'stop() stops one sound by name');
 audio.play('bank-whoosh');
 check(/^bank-whoosh-[123]$/.test(starts().at(-1)[1]), 'a sound with variants plays one of them');
+
+// Opening lift follows track time, including cutscene skips, without moving
+// the source cue or interfering with an early cut/storm fade.
+for (const [offset, initialLift] of [[0, 2], [5.165, 2], [11.25, 1.5], [13, 1]]) {
+  audio.play('music-flight', { offset, delay: 0.2, cut: true });
+  const event = starts().at(-1), src = event[3];
+  check(src.offset === offset && event[2] === ctx.currentTime + 0.2, `flight at ${offset}s preserves playback offset and start time`);
+  const opening = src.targets[0];
+  const envelope = opening.gain.curves[0];
+  let level = opening;
+  if (offset < 12) {
+    check(envelope?.t === event[2] && envelope.d === 12 - offset, 'opening lift follows remaining track time');
+    check(envelope?.curve[0] === initialLift && envelope.curve.at(-1) === 1, 'opening is lifted then returns to normal volume');
+    level = opening.targets[0];
+  } else {
+    check(!envelope, 'later playback uses the normal music level');
+  }
+  check(level.gain.value === SOUNDS['music-flight'].gain, 'base mix level is unchanged');
+  if (offset === 5.165) audio.cut(0.45);
+  else audio.stop('music-flight', 5);
+  const seconds = offset === 5.165 ? 0.45 : 5;
+  check(src.stopAt === ctx.currentTime + seconds && level.gain.targets.at(-1).v === 0,
+    'skip/stop fades independently of the opening lift');
+}
 
 audio.held = true;
 check(ctx.state === 'suspended', 'holding suspends the context');

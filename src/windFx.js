@@ -169,6 +169,7 @@ export function createWindFx(scene, options = {}) {
       cloud.age += dt;
       const dist = tmp.copy(cloud.center).sub(camPos).length();
       const fade = smooth(o.cloudAhead + 20, o.cloudAhead - 20, dist) * smooth(0, 1.5, cloud.age);
+      const alpha = o.cloudOpacity * (cloud.opacity ?? 1) * visibility * fade;
       for (const sp of cloud.sprites) {
         if (cloud.anchored) {
           // Slow local movement keeps a fixed cliff shroud alive without
@@ -179,11 +180,17 @@ export function createWindFx(scene, options = {}) {
             cloud.center.z + sp.offset.z,
           );
         }
+        // Keep anchors and recycling current, but don't billboard or measure
+        // lens distance for fully faded banks. Nonzero fades are unchanged.
+        if (alpha === 0) {
+          setOpacity(sp, 0);
+          continue;
+        }
         const d = tmp.copy(sp.entity.getPosition()).sub(camPos).length();
         // Thin out the sprites right at the lens so passing close reads as
         // flying through wisps, not a card hitting the camera.
-        setOpacity(sp, o.cloudOpacity * (cloud.opacity ?? 1) * visibility * fade * smooth(0.8, 4, d));
-        sp.entity.lookAt(camPos, Vec3.UP);
+        setOpacity(sp, alpha * smooth(0.8, 4, d));
+        if (sp.opacity > 0) sp.entity.lookAt(camPos, Vec3.UP);
       }
       if (o.onEnter && fade > 0.5 && visibility > 0.5) enterCheck(cloud, s);
     }

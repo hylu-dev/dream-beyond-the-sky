@@ -16,9 +16,11 @@ options.componentSystems = [RenderComponentSystem, CameraComponentSystem];
 app.init(options);
 // Supply file transport for the texture; no browser/GPU or image decode here.
 let loadedTexture;
+let textureLoads = 0;
 const textureLoaded = new Promise((resolve, reject) => {
   app.loader.addHandler('texture', {
     load(url, callback) {
+      textureLoads++;
       const path = typeof url === 'string' ? url : url.load;
       readFile(new URL(`../public${path}`, import.meta.url)).then(data => {
         assert.equal(data.toString('ascii', 1, 4), 'PNG');
@@ -114,5 +116,17 @@ scenery.enabled = air.enabled = false;
 const before = { ...scenery.stats() };
 scenery.update(1, flight, camera);
 assert.deepEqual(scenery.stats(), before, 'disabled scenery does not advance');
+// The main game keeps the birds but retires painted islands. That mode must
+// not fetch/decode/upload the atlas or allocate the four unused plane meshes.
+const loadsBefore = textureLoads;
+const meshesBefore = meshes().length;
+const birdsOnly = createFlightScenery(scene, { islands: 0 });
+assert.equal(textureLoads, loadsBefore, 'birds-only scenery requests no island texture');
+assert.equal(birdsOnly.stats().paintedVariants, 0);
+assert.equal(meshes().length - meshesBefore, 3, 'birds-only scenery creates just the flock meshes');
+birdsOnly.reset(flight);
+birdsOnly.update(1 / 60, flight, camera);
+assert.equal(birdsOnly.stats().birds, 21);
+inspectBuffers();
 console.log(JSON.stringify({ passed: true, headings: 4, simulatedSeconds: 250, meshInstances: meshCount,
   uniqueBuffers: buffers.size, recycled, scenery: scenery.stats(), air: air.stats() }, null, 2));

@@ -17,6 +17,14 @@ export const SCENERY_DEFAULTS = {
 };
 
 const random = (a, b) => a + Math.random() * (b - a);
+// Shared local silhouette. Only the two wing tips change height per bird;
+// keeping this outside the update avoids rebuilding 13 arrays per bird/frame.
+const BIRD_POINTS = [
+  [0, 0, 0.28], [-0.95, 0, -0.1], [-0.26, 0.02, -0.18],
+  [0, 0, 0.28], [0.26, 0.02, -0.18], [0.95, 0, -0.1],
+  [-0.08, 0, -0.28], [0, 0.07, 0.39], [0.08, 0, -0.28],
+  [-0.18, 0.03, -0.48], [0, 0, -0.14], [0.18, 0.03, -0.48],
+];
 function advance(point, axis, distance) {
   point.x += axis.x * distance;
   point.y += axis.y * distance;
@@ -102,10 +110,12 @@ export function createFlightScenery(scene, options = {}) {
     painted.update();
   });
   asset.on('error', (err) => console.warn('Painted flight islands unavailable; hiding cutouts.', err));
-  app.assets.add(asset);
-  app.assets.load(asset);
+  if (o.islands > 0) {
+    app.assets.add(asset);
+    app.assets.load(asset);
+  }
 
-  const planes = ISLAND_ART.frames.map(frame => paintedPlane(device, frame));
+  const planes = o.islands > 0 ? ISLAND_ART.frames.map(frame => paintedPlane(device, frame)) : [];
   const islands = Array.from({ length: o.islands }, (_, i) => {
     const variant = i % planes.length;
     const part = render(root, `painted-island-${i}`, planes[variant], painted);
@@ -168,15 +178,10 @@ export function createFlightScenery(scene, options = {}) {
         // A few strokes, then a long banked glide; never synchronized.
         const stroke = smooth(-0.15, 0.45, Math.sin(time * 0.65 + i * 0.42 + flock.phase));
         const wing = 0.12 + Math.sin(phase) * 0.46 * stroke;
-        const points = [
-          [0, 0, 0.28], [-0.95, wing, -0.1], [-0.26, 0.02, -0.18],
-          [0, 0, 0.28], [0.26, 0.02, -0.18], [0.95, wing, -0.1],
-          [-0.08, 0, -0.28], [0, 0.07, 0.39], [0.08, 0, -0.28],
-          [-0.18, 0.03, -0.48], [0, 0, -0.14], [0.18, 0.03, -0.48],
-        ];
-        for (const p of points) {
+        for (let vertex = 0; vertex < BIRD_POINTS.length; vertex++) {
+          const p = BIRD_POINTS[vertex];
           flock.positions[n++] = x + p[0] * 0.7;
-          flock.positions[n++] = y + p[1] * 0.7;
+          flock.positions[n++] = y + (vertex === 1 || vertex === 5 ? wing : p[1]) * 0.7;
           flock.positions[n++] = z + p[2] * 0.7;
         }
       }

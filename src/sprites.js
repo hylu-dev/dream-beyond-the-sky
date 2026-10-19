@@ -63,11 +63,16 @@ export function makeSprite(parent, quad, material, name) {
   entity.addComponent('render', { meshInstances: [meshInstance], castShadows: false });
   parent.addChild(entity);
   meshInstance.setParameter('material_opacity', 0);
+  meshInstance.visible = false;
   return { entity, meshInstance, opacity: 0 };
 }
 
 export function setOpacity(sprite, value) {
+  // Zero-alpha quads still cost culling, sorting and draw submission unless
+  // explicitly hidden. Keep entities alive so simulation and fades continue.
+  if (sprite.opacity === value) return;
   sprite.opacity = value;
+  sprite.meshInstance.visible = value > 0;
   sprite.meshInstance.setParameter('material_opacity', value);
 }
 

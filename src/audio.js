@@ -3,7 +3,7 @@ import { assetUrl } from './assetUrl.js';
 // the game sets every frame, and one-shots on its moments. The files are
 // public/assets/audio, made by tools/process-audio.mjs (prompts in
 // tools/audio-sounds.mjs) and all levelled alike, so the mix lives here:
-// `gain` is each sound's loudest, and the game asks for 0..1 of it.
+// `gain` is each sound's base level, and the game asks for 0..1 of it.
 //
 // Nothing plays until the page has been clicked or a key pressed (unlock(),
 // from the gesture's own handler); the sounds load in the background and any
@@ -31,7 +31,6 @@ export const SOUNDS = {
   pulse: { gain: 1.3 },
   launch: { gain: 0.8 },
   'cloud-pass': { gain: 0.7 },
-  'area-reveal': { gain: 0.45 },
   'bank-whoosh': { gain: 0.45, variants: 3 },
   'cliff-pass': { gain: 0.7, variants: 3 },
   'cloud-whoosh': { gain: 0.55, variants: 4 },
@@ -41,7 +40,9 @@ export const SOUNDS = {
   // blow.
   'music-night': { loop: true, gain: 0.55, crossfade: 6 },
   'music-dawn': { gain: 0.8 },
-  'music-flight': { gain: 0.8 },
+  // Lift the recording's quiet opening by ~6 dB, then ease back as its
+  // orchestra fills out. These are track seconds, including after a skip.
+  'music-flight': { gain: 0.8, introLift: { gain: 2, hold: 10.5, end: 12 } },
   'music-storm': { gain: 1 },
   // The hardest hit in the game; it ducks everything else (see play()).
   'cliff-impact': { gain: 1.5, duck: { to: 0.2, hold: 0.5, release: 2.5 } },
@@ -168,16 +169,31 @@ export function createAudio(options = {}) {
       if (!unlocked || held || !list) return;
       const src = ctx.createBufferSource();
       src.buffer = list[Math.floor(Math.random() * list.length)];
+      const at = ctx.currentTime + delay;
       const g = ctx.createGain();
       g.gain.value = SOUNDS[name].gain * gain;
-      let node = src.connect(g);
+      let node = src;
+      const lift = SOUNDS[name].introLift;
+      if (lift && offset < lift.end) {
+        const opening = ctx.createGain();
+        const seconds = lift.end - offset;
+        const curve = Float32Array.from({ length: N }, (_, i) => {
+          const t = offset + seconds * i / (N - 1);
+          const u = Math.min(Math.max((t - lift.hold) / (lift.end - lift.hold), 0), 1);
+          return 1 + (lift.gain - 1) * (1 - u * u * (3 - 2 * u));
+        });
+        opening.gain.setValueCurveAtTime(curve, at, seconds);
+        // A separate node lets stop()/cut() fade out immediately even while
+        // the opening envelope is scheduled. It never moves the source cue.
+        node = node.connect(opening);
+      }
+      node = node.connect(g);
       if (pan) {
         const p = ctx.createStereoPanner();
         p.pan.value = Math.min(Math.max(pan, -1), 1);
         node = node.connect(p);
       }
       const duck = SOUNDS[name].duck;
-      const at = ctx.currentTime + delay;
       node.connect(duck ? master : rest);
       if (duck) {
         rest.gain.cancelScheduledValues(at);

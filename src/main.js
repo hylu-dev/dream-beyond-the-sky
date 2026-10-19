@@ -1497,7 +1497,6 @@ function showAreaTitle() {
   areaEl.classList.remove('play');
   void areaEl.offsetWidth; // so the animation runs from the start
   areaEl.classList.add('play');
-  audio.play('area-reveal');
 }
 
 function updateFlight(dt) {
