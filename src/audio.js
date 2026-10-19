@@ -34,6 +34,7 @@ export const SOUNDS = {
   'area-reveal': { gain: 0.45 },
   'bank-whoosh': { gain: 0.45, variants: 3 },
   'cliff-pass': { gain: 0.7, variants: 3 },
+  'cloud-whoosh': { gain: 0.55, variants: 4 },
   'cliff-gasp': { gain: 0.8 }, // her, as the rock comes at her
   // Music: the title screen's and the ending's, kept under the night; dawn,
   // from Start until she falls; the flight's; and the storm's, ending on the

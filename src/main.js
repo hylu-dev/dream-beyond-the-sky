@@ -449,13 +449,23 @@ const launchShot = createLaunchShot(scene.cameraEntity, chaseCamera);
 // The near clouds in the golden hour she leaves the island in: a dusky rose
 // underneath, orange where the low sun catches their tops.
 // The clouds' tints, foot and top: warm off the island, in the golden light,
-// and white over lavender shadow in the sky scene, like its own clouds -
-// they cool as its grade settles (SKY_GRADE).
+// and in the sky scene its own clouds' lavender shade under peach-lit tops,
+// matched to them on screen - they settle as its grade does (SKY_GRADE).
 const CLOUD_COLORS = {
   warm: { base: [0.7, 0.62, 0.72], top: [1, 0.8, 0.58] },
-  sky: { base: [0.7, 0.72, 0.85], top: [1, 0.98, 0.97] },
+  sky: { base: [0.34, 0.36, 0.52], top: [0.92, 0.76, 0.66] },
 };
-const windFx = createWindFx(scene, { baseColor: CLOUD_COLORS.warm.base, topColor: CLOUD_COLORS.warm.top });
+// Flying into a cloud, a whoosh, on its side; never two at once, however
+// many clouds she threads in a row.
+const CLOUD_WHOOSH = { gap: 4, pan: 0.4 };
+let cloudWhooshAt = -Infinity;
+function cloudWhoosh({ side }) {
+  const now = audio.ctx.currentTime;
+  if (state !== 'fly' || now - cloudWhooshAt < CLOUD_WHOOSH.gap) return;
+  cloudWhooshAt = now;
+  audio.play('cloud-whoosh', { pan: -CLOUD_WHOOSH.pan * side });
+}
+const windFx = createWindFx(scene, { baseColor: CLOUD_COLORS.warm.base, topColor: CLOUD_COLORS.warm.top, onEnter: cloudWhoosh });
 // Big slow banks out across the whole sky, beyond the ones she flies past;
 // its reserved banks wrap the cliffs' feet.
 const skyClouds = createWindFx(scene, {
@@ -476,6 +486,7 @@ const skyClouds = createWindFx(scene, {
   streaks: 0,
   baseColor: CLOUD_COLORS.warm.base,
   topColor: CLOUD_COLORS.warm.top,
+  onEnter: cloudWhoosh,
 });
 // The painted billboard islands are retired for the modelled cliffs; the
 // birds stay.

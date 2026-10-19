@@ -229,8 +229,20 @@ export const SOUNDS = [
     mix: [[['heartbeat', 1, 0, 0, 'atrim=0:0.4,bass=g=4:f=60,volume=12dB,asoftclip=type=tanh,volume=-12dB']]],
   },
   {
-    name: 'cliff-pass', seconds: 3, takes: 3, use: [1, 2, 3],
+    // Chosen by ear from a wider round: takes 4 and 5 were made from the
+    // first prompt below, 6 from the second (2026-10-19). Takes 1-3, from
+    // `text`, were the first set.
+    // 'A massive floating stone cliff passing very close at high speed: one deep, heavy, low whoosh of displaced air with a dark rumble, swelling in as it nears and sweeping away behind. Single pass, smooth, no impacts. No music.'
+    // 'A cinematic sound-design fly-by whoosh: a clean swelling air rush with a soft sub undertone, peaking as the object passes and doppler-shifting away into a long airy tail. Polished trailer sound design, single pass, no hits. No music.'
+    name: 'cliff-pass', seconds: 3, takes: 6, use: [4, 5, 6],
     text: 'A huge floating rock cliff rushing past at speed: a deep heavy whoosh of air compressing against stone, a doppler air sweep passing close and receding. No music.',
+  },
+  {
+    // Flying into a cloud. Chosen by ear from the same round as cliff-pass:
+    // takes 1 and 2 from `text`, 3 and 4 from the prompt below.
+    // 'A huge rock mass passing within metres: a roaring wind rush with a hollow, resonant stone tone in it, like air sweeping past a cliff wall, building and falling away in one smooth doppler pass. No impacts. No music.'
+    name: 'cloud-whoosh', seconds: 3, takes: 4, use: [1, 2, 3, 4],
+    text: 'Flying fast through the narrow gap past a towering rock: a rushing gust of wind that rises to a whistling howl as the stone passes, then opens out and fades. Single pass. No music.',
   },
   // She gasps as the rock comes at her out of the cloud (src/crash.js).
   {

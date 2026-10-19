@@ -37,6 +37,13 @@ export const WIND_DEFAULTS = {
   streakOffset: [1.5, 7],
   streakAlpha: 0.12,
   wipeRadius: 16,
+  // onEnter({ side }) is called as she is about to fly into a cloud: when the
+  // point `enterLead` seconds ahead of her comes within `enterReach` of a
+  // puff's size from its middle (side: 1 to her left, -1 right). Once a
+  // cloud, until that point is clear of it again.
+  onEnter: null,
+  enterLead: 1,
+  enterReach: 0.75,
 };
 
 export function createWindFx(scene, options = {}) {
@@ -124,6 +131,7 @@ export function createWindFx(scene, options = {}) {
   function fillCloud(cloud, r) {
     cloud.radius = r;
     cloud.age = 0;
+    cloud.entered = false;
     // A cumulus: wide and deep, a flat base, the billows piled on top.
     for (const sp of cloud.sprites) {
       const a = Math.random() * Math.PI * 2;
@@ -146,8 +154,10 @@ export function createWindFx(scene, options = {}) {
     }
   }
 
+  const ahead = new Vec3();
   function updateClouds(dt, s) {
     const along = s.pos.dot(s.forward);
+    if (o.onEnter) ahead.copy(s.forward).mulScalar(s.speed * o.enterLead).add(s.pos);
     for (const cloud of clouds) {
       // Recycle a cloud once the camera is past it, out to the front of the stream.
       tmp.copy(cloud.center).sub(camPos);
@@ -175,7 +185,20 @@ export function createWindFx(scene, options = {}) {
         setOpacity(sp, o.cloudOpacity * (cloud.opacity ?? 1) * visibility * fade * smooth(0.8, 4, d));
         sp.entity.lookAt(camPos, Vec3.UP);
       }
+      if (o.onEnter && fade > 0.5 && visibility > 0.5) enterCheck(cloud, s);
     }
+  }
+
+  // Whether the point ahead of her is in one of the cloud's puffs, and if it
+  // has just come into it, onEnter.
+  function enterCheck(cloud, s) {
+    if (tmp.copy(cloud.center).sub(ahead).length() > cloud.radius * 2.5) {
+      cloud.entered = false;
+      return;
+    }
+    const inside = cloud.sprites.some((sp) => tmp.copy(sp.entity.getPosition()).sub(ahead).length() < sp.size * o.enterReach);
+    if (inside && !cloud.entered) o.onEnter({ side: Math.sign(tmp.copy(cloud.center).sub(s.pos).dot(s.left)) || 1 });
+    cloud.entered = inside;
   }
 
   // ── Streaks ─────────────────────────────────────────────────────────────
