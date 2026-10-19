@@ -138,14 +138,14 @@ const VIEW = {
 };
 
 // At the height of the dawn the world pulses (magicPulse.js), and under the
-// flash of it she takes her place at the edge.
+// flash of it she takes her place on the brow, sitting as she sat (RISE).
 const PULSE = { seconds: 2.6, triggerBelow: 0.6 }; // degrees short of golden hour
 
 // Then the camera backs out along its look, sinking a little and opening
 // out as it goes, its look settling a few degrees lower, until she is
-// revealed standing on the edge, full length; it stops there and waits with
-// a slow rumble building, and she goes. The tree's canopy frames the top
-// left of the shot.
+// revealed getting up on the brow; it stops there and waits with a slow
+// rumble building while she walks to the edge, and she goes. The tree's
+// canopy frames the top left of the shot.
 const BACK_OUT = {
   after: 0.9, // seconds after the pulse peaks
   metres: 1.8,
@@ -156,17 +156,41 @@ const BACK_OUT = {
 };
 
 // The edge: a lip at the north-east of the brow over a drop of nearly two
-// metres. She waits on it quite still, in vanish.glb's first frame, and
-// then the clip runs on from there: it takes her off some 38 degrees to
-// her right, so she stands turned that much left of the drop - which puts
-// her back to the camera.
+// metres. She comes to a stop on it in vanish.glb's first frame, waits
+// there quite still, and then the clip runs on from there: it takes her off
+// some 38 degrees to her right, so she stands turned that much left of the
+// drop - which puts her back to the camera.
 const BRINK = {
   x: 2.1,
   y: 1.47, // the lip under her feet
   z: -4.6,
   headingDeg: 83,
-  waitSeconds: 3.2, // after the camera stops, rumbling
+  waitSeconds: 3.2, // at least, after the camera stops, rumbling
   rumble: { metres: 0.012, rollDeg: 0.35, hz: 7, buildSeconds: 2.4 },
+};
+
+// How she gets there: getup.glb (PINOC "Sit to Stand Turn Walk") has her
+// sit, lean forward and push up off her knees, then walk, bearing right, to
+// a stop. The engine keeps clips in place, so she is carried along the
+// clip's own travel (getup.path.json), laid out backwards from the lip so
+// that it ends there: she sets off `headingDeg`, and over the last steps,
+// from `turnFrom` seconds into the clip, she eases round to stop facing as
+// vanish.glb begins - whose first frame faces `vanishTurnDeg` left of the
+// clip's last, both measured offline. That puts where she sits on the flat
+// of the brow, just in the back-out's frame once it is half way out. She
+// sits there unseen for `delay` seconds after the flash, so the camera finds
+// her rising. `ground` is the brow under her feet, [clip seconds, metres],
+// measured offline from the capture; her last step comes down onto the lip.
+// At the stop she settles into vanish.glb over `settleSeconds`, and stands
+// `standSeconds` before she goes.
+const RISE = {
+  delay: 1.5,
+  headingDeg: 129.9,
+  turnFrom: 6.4,
+  vanishTurnDeg: 74.9,
+  ground: [[0, 1.97], [4, 1.95], [5, 2], [6, 1.86], [6.9, 1.76], [7.4, 1.47]],
+  settleSeconds: 0.6,
+  standSeconds: 1,
 };
 
 // She jumps off the edge. The engine keeps clips in place, so she moves
@@ -406,6 +430,7 @@ const [sanctuary, sky, character, cliffAssets] = await Promise.all([
   Animation.loadGlb(scene, assetUrl('anims/idle.glb'), 'idle'),
   Animation.loadGlb(scene, assetUrl('anims/doze.glb'), 'doze'),
   Animation.loadGlb(scene, assetUrl('anims/wake.glb'), 'wake'),
+  Animation.loadGlb(scene, assetUrl('anims/getup.glb'), 'getup'),
   Animation.loadGlb(scene, assetUrl('anims/vanish.glb'), 'vanish'),
   Animation.loadGlb(scene, assetUrl('anims/flail.glb'), 'flail'),
   Animation.loadGlb(scene, assetUrl('anims/impact.glb'), 'impact'),
@@ -414,7 +439,9 @@ const [sanctuary, sky, character, cliffAssets] = await Promise.all([
   Animation.loadGlb(scene, assetUrl('anims/sigh.glb'), 'sigh'),
 ]);
 sky.entity.enabled = false;
-const vanishPath = await (await fetch(assetUrl('anims/vanish.path.json'))).json();
+const [vanishPath, risePath] = await Promise.all(
+  ['vanish', 'getup'].map(async (name) => (await fetch(assetUrl(`anims/${name}.path.json`))).json()),
+);
 
 const timeOfDay = await createTimeOfDay(scene, {
   environment: sanctuary,
@@ -969,8 +996,8 @@ function updatePulse(dt) {
   tmpVec.copy(timeOfDay.sunDirection).mulScalar(500).add(cam.getPosition());
   cam.camera.worldToScreen(tmpVec, screenTmp);
   pulse.center = [screenTmp.x / canvas.clientWidth, screenTmp.y / canvas.clientHeight];
-  // Under its flash she takes her place on the edge.
-  if (!moved && p >= 0.5) moveToBrink();
+  // Under its flash she takes her place on the brow.
+  if (!moved && p >= 0.5) moveToRise();
   if (p >= 1) {
     pulse.amount = 0;
     pulseTime = -1;
@@ -978,14 +1005,75 @@ function updatePulse(dt) {
 }
 const screenTmp = new Vec3();
 
-function moveToBrink() {
-  pos.copy(brink);
-  headingDeg = BRINK.headingDeg;
-  // Quite still: vanish.glb held on its first frame until she goes.
-  character.playAnimation('vanish', { loop: false });
+// Her walk to the lip (RISE): where getup.glb has carried her by each of
+// its frames, at the headings she walks it at, so that its last frame is on
+// the lip.
+const riseFrames = risePath.x.length - 1;
+const riseSeconds = riseFrames * risePath.dt;
+const riseHeading = (t) =>
+  RISE.headingDeg + (BRINK.headingDeg + RISE.vanishTurnDeg - RISE.headingDeg) * smooth(RISE.turnFrom, riseSeconds, t);
+const riseTrack = { x: new Float32Array(riseFrames + 1), z: new Float32Array(riseFrames + 1) };
+for (let k = 1; k <= riseFrames; k++) {
+  const dx = risePath.x[k] - risePath.x[k - 1], dz = risePath.z[k] - risePath.z[k - 1];
+  const r = riseHeading(k * risePath.dt) * DEG;
+  riseTrack.x[k] = riseTrack.x[k - 1] + Math.cos(r) * dx + Math.sin(r) * dz;
+  riseTrack.z[k] = riseTrack.z[k - 1] - Math.sin(r) * dx + Math.cos(r) * dz;
+}
+
+function risePosition(t, out) {
+  const f = Math.min(Math.max(t / risePath.dt, 0), riseFrames);
+  const i = Math.min(Math.floor(f), riseFrames - 1), u = f - i;
+  const { x, z } = riseTrack;
+  const g = RISE.ground;
+  let k = 0;
+  while (k < g.length - 2 && t > g[k + 1][0]) k++;
+  return out.set(
+    brink.x + x[i] + (x[i + 1] - x[i]) * u - x[riseFrames],
+    g[k][1] + (g[k + 1][1] - g[k][1]) * smooth(g[k][0], g[k + 1][0], t),
+    brink.z + z[i] + (z[i + 1] - z[i]) * u - z[riseFrames],
+  );
+}
+
+// `time`: seconds into getup.glb, counting up from -RISE.delay while she
+// waits; `settle`: seconds since she stopped on the lip, or -1.
+const rise = { active: false, time: 0, settle: -1 };
+
+function moveToRise() {
+  // Sitting, as under the tree: getup.glb held on its first frame.
+  character.playAnimation('getup', { loop: false });
   character.playbackSpeed = 0;
+  Object.assign(rise, { active: true, time: -RISE.delay, settle: -1 });
+  risePosition(0, pos);
+  headingDeg = riseHeading(0);
   moved = true;
 }
+
+function updateRise(dt) {
+  if (rise.settle < 0) {
+    if (rise.time < 0) {
+      rise.time += dt;
+      if (rise.time >= 0) character.playbackSpeed = 1;
+    } else {
+      rise.time = character.animationTime / 30; // the clip's own clock
+    }
+    risePosition(rise.time, pos);
+    headingDeg = riseHeading(rise.time);
+    if (rise.time >= riseSeconds) {
+      // Stopped on the lip, she settles into vanish.glb's first frame and
+      // holds it there. The blend turns her body by vanishTurnDeg, so the
+      // heading turns back by as much with it, and she does not turn at all.
+      character.crossfadeTo('vanish', { duration: RISE.settleSeconds, loop: false });
+      character.playbackSpeed = 0;
+      rise.settle = 0;
+    }
+    return;
+  }
+  rise.settle += dt;
+  pos.copy(brink);
+  headingDeg = BRINK.headingDeg + RISE.vanishTurnDeg * (1 - character.armature.crossfadeProgress);
+}
+// Settled on the lip, and still there long enough to go.
+const readyToGo = () => !rise.active || rise.settle >= RISE.settleSeconds + RISE.standSeconds;
 
 // Straight back along the look, opening out: she comes into view.
 function updateBackOut(dt) {
@@ -1094,6 +1182,7 @@ function updateIslandSequence(dt) {
   timeOfDay.update(dt);
   if (wakeTime >= 0) wakeTime += dt;
   updatePulse(dt);
+  if (rise.active) updateRise(dt);
 
   switch (state) {
     case 'menu':
@@ -1136,11 +1225,12 @@ function updateIslandSequence(dt) {
       updateHomeward(dt);
       break;
 
-    // On the edge, her back to us; the rumble builds, and she goes.
+    // She comes to the edge, her back to us; the rumble builds, and she goes.
     case 'brink':
       rumble = smooth(0, BRINK.rumble.buildSeconds, stateTime);
       updateHoldCamera(dt);
-      if (stateTime >= BRINK.waitSeconds) {
+      if (stateTime >= BRINK.waitSeconds && readyToGo()) {
+        rise.active = false;
         character.playbackSpeed = 1;
         setState('vanish');
       }
@@ -1465,6 +1555,7 @@ function skipToFlight() {
     flashing = false;
     if (flailClip > 0) setFlailClip(0);
     flailAtFly = flailClipAtFly = confidence = 0;
+    rise.active = false;
     character.setLayers([LAYERID_WORLD]);
     onOwnLayer = true;
     document.body.classList.remove('cinema');
@@ -1665,7 +1756,7 @@ function wakeUp() {
   wakeSnap = 3;
   sighed = dozing = menuBack = false;
   wakeSound = 0;
-  moved = false; // back at the tree
+  moved = rise.active = false; // back at the tree
   setLids(1);
   setState('woken');
 }

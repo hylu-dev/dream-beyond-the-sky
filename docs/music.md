@@ -32,12 +32,14 @@ Measured from Start in a full playthrough:
 | title screen | She dozes under the tree at night | as long as the player waits |
 | 0.0 s | In to her face; she wakes | 6.5 s |
 | 6.5 s | The camera turns to the sun; the gong pulse at about 15 s | 9 s |
-| 15.5 s | Dawn, and back out to her on the edge | 7.8 s |
-| 23.3 s | The edge rumbles; she steps off and drops | 8.4 s |
-| 31.7 s | Up through the cloud | 5.1 s |
-| 36.9 s | Free flight | 58.9 s |
-| 95.8 s | The storm (7.3 s) to the blow, then her fall (5.2 s) to the black | 13 s |
-| 108.8 s | She wakes under the tree; the sky; back to the title screen | about 28 s |
+| 15.5 s | Dawn, and back out to her getting up on the brow | 7.8 s |
+| 23.3 s | The edge rumbles as she walks to it; she steps off and drops | 9.9 s |
+| 33.2 s | Up through the cloud | 5.1 s |
+| 38.4 s | Free flight | 58.9 s |
+| 97.3 s | The storm (7.3 s) to the blow, then her fall (5.2 s) to the black | 13 s |
+| 110.3 s | She wakes under the tree; the sky; back to the title screen | about 28 s |
+
+From 23.3 s on, these are the measured times moved 1.5 s later for her walk to the edge, worked out from the sequence's timings rather than measured again. The dawn track now fades out about 2 s before it would end.
 
 Hold to skip jumps from anywhere in the cutscene to the flight.
 

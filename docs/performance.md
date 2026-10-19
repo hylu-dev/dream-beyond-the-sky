@@ -34,18 +34,18 @@ The output is unchanged: the tints written are the same values, just not rewritt
 
 ## Memory and loading
 
-The title screen waits for one `Promise.all` covering both realms, the character, all nine animation clips and the cliff set. Audio loads alongside it without blocking.
+The title screen waits for one `Promise.all` covering both realms, the character, all ten animation clips and the cliff set. Audio loads alongside it without blocking.
 
 | Fetched at startup | Download | Resident afterwards |
 | --- | ---: | --- |
 | Island realm (`.spz`) | 16.3 MiB | ~32 MiB GPU textures + 12 MiB CPU sort centers (estimated from formats) |
 | Sky realm (`.spz`) | 16.0 MiB | the same, held through the whole island sequence |
-| Animation clips (9 `.glb`) | 22.3 MiB | parsed into keyframe tracks |
+| Animation clips (10 `.glb`) | 23.5 MiB | parsed into keyframe tracks |
 | Cliff textures and mesh | 9.5 MiB | 32 MiB GPU (four 1254² RGBA textures with mips) |
 | Character (`.vsplat`) | 1.2 MiB | small |
 | Decoded sounds (`.mp3`) | 6.2 MiB | **~132 MiB** PCM at 48 kHz (360.6 s of stereo float32) |
 | Streamed music (`.mp3`) | 4.3 MiB | browser media buffers only |
-| **Total** | **75.7 MiB** | |
+| **Total** | **76.9 MiB** | |
 
 The decoded-sound figure is exact arithmetic from the files' durations. The splat figures follow from PlayCanvas's texture formats and still need confirming in a browser. A further 41 MiB in `public/` ships with every deploy but the game never requests it: the seven `flight/cliffs/*.glb` models (written there by `tools/build-flight-cliffs.py` and read by `verify-cliff-demo.mjs`), the retired `painted-islands-atlas.png`, and the unreferenced `flight/cliff-stone-painterly.png` and `flight/clouds/painted-clouds.png`.
 
