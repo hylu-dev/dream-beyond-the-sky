@@ -40,14 +40,22 @@ export const CRASH_DEFAULTS = {
     scale: 3,
     side: 1, // 1: it stands to her left, -1: to her right
     beyond: 16, // metres past the wall's middle where she meets it, still in it
-    // She clips the corner of it that stands furthest out toward her line,
-    // at the foot of its top-heavy block: bare rock, its leaves and ivy all
-    // well above, and nothing of it below reaches as far, so she falls clear
-    // down its face. In the formation's own units, the height it is looked
-    // for about.
+    // It stands right across her way: the corner of it that stands furthest
+    // out toward her line, at the foot of its top-heavy block, is `across`
+    // metres past her middle on her far side, and she flies into the bare
+    // face before it, its leaves and ivy all well above and nothing of it
+    // below standing out, so she falls clear down it. At 8 m that face runs
+    // on 18 m to the corner, 42 degrees off square to her: no getting round
+    // it. In the formation's own units, the height the corner is looked for
+    // about, and hers over the corner's.
     hitHeight: 1,
     band: 3.5,
-    edge: 0.3, // metres of her middle, toward it, its corner stands
+    across: 8,
+    lift: 0.25,
+    // Her, flying at it: metres either side of her line, below and above her
+    // height, and how far her head is ahead of her, as the blow comes.
+    body: [0.5, -0.3, 0.5],
+    reach: 0.6,
     // Turned this far off the bearing its light is painted for (negative:
     // the other way), so that bare corner is the one out toward her line and
     // the face she comes along falls away from it instead of running beside
@@ -65,21 +73,32 @@ export const CRASH_DEFAULTS = {
     // in the sky clouds `skyClouds`.
     shroud: [
       [11, 18, 21, 10], [-4, 1, 31, 12], [7, 9, 37, 9], [15, 26, 50, 10],
-      [3, 16, -21, 13], [8, 31, 5, 12], [-8, 14, -50, 13], [12, 22, -34, 12],
+      [3, 16, -21, 13], [-14, 12, -36, 12], [-8, 14, -50, 13], [12, 22, -34, 12],
     ],
     clouds: [3, 7, 8, 9, 10, 11, 12, 13],
     sky: [
       [-30, 40, 10, 28], [-8, 36, 69, 30], [20, 40, -20, 30],
       [-10, 26, -45, 32], [-5, 15, -85, 36], [0, 55, 25, 28],
+      // Past the corner, beyond her (out negative), closing the sky there.
+      [14, -18, 4, 14],
     ],
-    skyClouds: [3, 4, 5, 6, 7, 8],
+    skyClouds: [3, 4, 5, 6, 7, 8, 9],
   },
-  // She sees it this many seconds out, and has only that long to flail.
-  react: { lead: 0.35, flail: 0.85 },
+  // She sees it this many seconds out, and has only that long: she banks
+  // away from it and starts to brace, her arms coming up past her head, her
+  // and out in front of her head, her chin tucking, her back curling and her
+  // knees drawing up, over `seconds` - too late, it hits before she is all
+  // the way there. (`armIn` - out to her sides.) Degrees about
+  // her own axes (as the limp's below), braced full; it lets go over
+  // `release` after the blow, to the blow's own clip.
+  react: {
+    lead: 0.45, seconds: 0.55, release: 0.12,
+    brace: { arm: -150, armIn: -15, elbow: -45, hand: 20, head: -20, spine: -6, thigh: -20, knee: 35 },
+  },
   hit: {
     stop: 0.06, // time all but stops for this long at the blow,
     stopBy: 0.16, // and is back to full speed by this
-    keep: 0.2, // share of her speed along her line that she keeps
+    keep: 0, // share of her speed along her line that she keeps
     away: 11, // m/s flung away from the rock
     up: 3,
     drag: 1.4, // 1/s, how soon the fling across dies to a fall
@@ -139,6 +158,25 @@ export const CRASH_DEFAULTS = {
     spring: [14, 6.5], // [stiffness, damping]
     reveal: { back: 3.4, away: 1.3, up: 0.7, fov: 62, lead: 4, toRock: 0.22 },
     fall: { up: [2.4, 5], away: 3.4, back: 1, fov: 70, upSeconds: 4 },
+    // On the blow it cuts in right on her and the rock, and it has run into
+    // the wall with her: `wall` stops it dead there (metres back along her
+    // line from her, out on the open side and up, clear of the rock's crags,
+    // so she is flung past it), bouncing back off it `bounce` m/s. Its look
+    // is knocked off her (`knock` metres on into the rock, out from it and
+    // up: out over the open side, as the spire overhangs her and fills any
+    // look up) over `knockIn` seconds from `knockAt`, once the blow has
+    // landed. It holds there `hold` seconds as she is flung off and drops
+    // away, then comes down after her over `catch`, its look coming round to
+    // her at `aimRate` per second, to sit close on her from the open side
+    // (metres off her as `fall` has them, and the look `toRock` metres past
+    // her toward the rock); until she is falling `speed` m/s, by when it is
+    // out in the fall's framing. The jolts are `jolt` of theirs while close,
+    // and the near clouds `clouds` of theirs, their flat puffs cutting hard
+    // lines so near the lens.
+    close: {
+      away: 1.1, up: 0.25, back: 0.1, fov: 45, toRock: 0.3, aimRate: 4, speed: [5, 13], jolt: 0.8, clouds: 0.2,
+      wall: { back: 1.2, out: 1.1, up: 0.3, bounce: 2.5, knock: [-1, 2, -0.3], knockAt: 0.12, knockIn: 0.07, hold: 0.2, catch: 0.8 },
+    },
     lookRate: 7,
     shake: {
       reveal: { position: 0.06, rotationDeg: 1.4, hz: 5 },
@@ -167,6 +205,8 @@ export function createCrash(deps, options = {}) {
   scene.app.root.addChild(root);
   const formation = Math.max(cliffAssets.variants.findIndex(v => v.id === o.cliff.formation), 0);
   const rock = cliffAssets.instantiate(formation, root);
+  // Without its loose block, which would hang bare beside her as she falls.
+  for (const instance of rock.instances) if (instance.mesh === rock.variant.fragmentsMesh) instance.visible = false;
   // Its turn off the painted bearing, falling away from her line toward her.
   const turn = -o.cliff.side * o.cliff.turnDeg;
   // The corner she clips: of its shell's points in the band about that
@@ -188,6 +228,32 @@ export function createCrash(deps, options = {}) {
     }
     return best ?? [0, c.hitHeight, 0];
   })();
+  // Where her line meets its face: of its rock (the shell and the crags on
+  // it) straight ahead of any of her, the nearest to her, in the same frame.
+  const contactZ = (() => {
+    const c = o.cliff;
+    const r = (turn * Math.PI) / 180, cos = Math.cos(r), sin = Math.sin(r);
+    const x0 = edgeLocal[0] - (c.side * c.across) / c.scale, y0 = edgeLocal[1] + c.lift;
+    const [wide, low, high] = c.body;
+    let best = -Infinity;
+    for (const positions of [rock.variant.positions, rock.variant.details.positions]) {
+      for (let i = 0; i < positions.length; i += 9) {
+        const [ax, ay, az] = [positions[i] * cos + positions[i + 2] * sin, positions[i + 1], -positions[i] * sin + positions[i + 2] * cos];
+        const [bx, by, bz] = [positions[i + 3] * cos + positions[i + 5] * sin, positions[i + 4], -positions[i + 3] * sin + positions[i + 5] * cos];
+        const [ex, ey, ez] = [positions[i + 6] * cos + positions[i + 8] * sin, positions[i + 7], -positions[i + 6] * sin + positions[i + 8] * cos];
+        const den = (by - ey) * (ax - ex) + (ex - bx) * (ay - ey);
+        if (Math.abs(den) < 1e-9) continue;
+        for (let u = -1; u <= 1; u += 0.25) for (let v = 0; v <= 1; v += 0.25) {
+          const x = x0 + (u * wide) / c.scale, y = y0 + (low + v * (high - low)) / c.scale;
+          const wa = ((by - ey) * (x - ex) + (ex - bx) * (y - ey)) / den;
+          const wb = ((ey - ay) * (x - ex) + (ax - ex) * (y - ey)) / den;
+          if (wa < 0 || wb < 0 || wa + wb > 1) continue;
+          best = Math.max(best, wa * az + wb * bz + (1 - wa - wb) * ez);
+        }
+      }
+    }
+    return best > -Infinity ? best : edgeLocal[2];
+  })();
 
   let phase = null; // null until start(), then storm, reveal, fall, out
   let t = 0; // seconds into the phase, slowed with the blow
@@ -201,6 +267,7 @@ export function createCrash(deps, options = {}) {
   let turbulence = 0;
   const input = { turn: 0, climb: 0, from: { turn: 0, climb: 0 } };
   const hitPoint = new Vec3();
+  const cornerPoint = new Vec3(); // the corner, at her height
   const away = new Vec3();
   const vel = new Vec3();
   const spinAxis = new Vec3();
@@ -210,25 +277,31 @@ export function createCrash(deps, options = {}) {
   const pelvis = new Vec3(0, flight.options.pelvisHeight, 0); // in her own frame
   const tmp = new Vec3();
   const tmp2 = new Vec3();
+  const tmp3 = new Vec3();
 
   // ── The cliff ───────────────────────────────────────────────────────────
 
-  // Edge on her line `hitAlong` metres along it, `edge` metres toward it off
-  // her middle, at her height.
+  // Its face on her line `hitAlong` metres along it, at her height, and its
+  // corner `across` metres past her middle.
   function place() {
     const c = o.cliff;
-    const lateral = s.pos.dot(s.left) + c.side * c.edge + c.scale * edgeLocal[0];
-    const along = hitAlong + c.scale * edgeLocal[2];
+    const herLateral = s.pos.dot(s.left);
+    const cornerLateral = herLateral - c.side * c.across;
+    const lateral = cornerLateral + c.scale * edgeLocal[0];
+    const along = hitAlong + c.reach + c.scale * contactZ;
     tmp.copy(s.forward).mulScalar(along);
     tmp.x += s.left.x * lateral;
     tmp.z += s.left.z * lateral;
-    tmp.y = s.pos.y - c.scale * edgeLocal[1];
+    tmp.y = s.pos.y - c.scale * (edgeLocal[1] + c.lift);
     rock.entity.setPosition(tmp);
-    hitPoint.copy(s.forward).mulScalar(hitAlong);
-    const edgeLateral = s.pos.dot(s.left) + c.side * c.edge;
-    hitPoint.x += s.left.x * edgeLateral;
-    hitPoint.z += s.left.z * edgeLateral;
+    hitPoint.copy(s.forward).mulScalar(hitAlong + c.reach);
+    hitPoint.x += s.left.x * herLateral;
+    hitPoint.z += s.left.z * herLateral;
     hitPoint.y = s.pos.y;
+    cornerPoint.copy(s.forward).mulScalar(along - c.scale * edgeLocal[2]);
+    cornerPoint.x += s.left.x * cornerLateral;
+    cornerPoint.z += s.left.z * cornerLateral;
+    cornerPoint.y = s.pos.y - c.scale * c.lift;
   }
 
   function spawnCliff() {
@@ -240,7 +313,7 @@ export function createCrash(deps, options = {}) {
     // Its shroud, so only the corner in her way shows.
     const c = o.cliff;
     const shroud = (layer, banks, indices) => banks.forEach(([along, out, height, radius], i) => {
-      tmp.copy(hitPoint).add(tmp2.copy(s.forward).mulScalar(along)).add(tmp2.copy(away).mulScalar(-out));
+      tmp.copy(cornerPoint).add(tmp2.copy(s.forward).mulScalar(along)).add(tmp2.copy(away).mulScalar(-out));
       tmp.y += height;
       layer.anchorCloud(indices[i], tmp, radius, { opacity: 1 });
     });
@@ -275,10 +348,15 @@ export function createCrash(deps, options = {}) {
 
   const view = {
     pos: new Vec3(), vel: new Vec3(), look: new Vec3(), // look: off her, smoothed
-    fov: 55, shakeTime: 0, lurchTime: 0, hitTime: -1,
+    aim: new Vec3(), // where it looks, lagging her while close
+    fov: 55, shakeTime: 0, lurchTime: 0, hitTime: -1, cut: false,
   };
   const goal = new Vec3();
   const lookGoal = new Vec3();
+  const stuck = new Vec3(); // where it ran into the wall
+  const knock = new Vec3();
+  let fallOut = 1; // how far out of the close framing, falling
+  let follow = 1; // how far it has come off the wall after her
 
   function takeCamera() {
     const pose = chaseCamera.pose;
@@ -299,24 +377,55 @@ export function createCrash(deps, options = {}) {
       // Ahead of her, and turned toward the rock as it comes up.
       lookGoal.copy(s.forward).mulScalar(r.lead).add(tmp.copy(hitPoint).sub(s.pos).mulScalar(r.toRock));
     } else {
-      const f = c.fall;
+      const f = c.fall, cl = c.close;
       const up = f.up[0] + (f.up[1] - f.up[0]) * smooth(0, f.upSeconds, t);
       // Above her and out on the far side from the rock, a little behind
-      // where she is drifting, looking down on her.
+      // where she is drifting, looking down on her; close at first.
       tmp2.set(vel.x, 0, vel.z);
       if (tmp2.lengthSq() > 1e-4) tmp2.normalize();
-      goal.copy(s.pos).add(tmp.copy(away).mulScalar(f.away)).sub(tmp2.mulScalar(f.back));
-      goal.y += up;
-      lookGoal.copy(vel).mulScalar(0.1);
+      const u = smooth(cl.speed[0], cl.speed[1], -vel.y);
+      goal.copy(s.pos)
+        .add(tmp.copy(away).mulScalar(cl.away + (f.away - cl.away) * u))
+        .sub(tmp2.mulScalar(cl.back + (f.back - cl.back) * u));
+      goal.y += cl.up + (up - cl.up) * u;
+      lookGoal.copy(away).mulScalar(-cl.toRock * (1 - u)).add(tmp.copy(vel).mulScalar(0.1 * u));
+      fallOut = u;
+      windFx.visibility = cl.clouds + (1 - cl.clouds) * u;
+      const w = cl.wall;
+      if (view.cut) {
+        view.cut = false;
+        stuck.copy(s.pos).sub(tmp.copy(s.forward).mulScalar(w.back)).add(tmp.copy(away).mulScalar(w.out));
+        stuck.y += w.up;
+        view.pos.copy(stuck);
+        view.vel.copy(s.forward).mulScalar(-w.bounce);
+        view.look.copy(lookGoal);
+        view.aim.copy(s.pos).add(lookGoal);
+        view.fov = cl.fov;
+        knock.copy(s.forward).mulScalar(w.knock[0]).add(tmp.copy(away).mulScalar(w.knock[1]));
+        knock.y += w.knock[2];
+      }
+      follow = smooth(w.hold, w.hold + w.catch, t);
+      goal.lerp(stuck, goal, follow);
     }
     // On a spring that keeps pace with her, so it doesn't trail her fall.
     const [k, d] = c.spring;
-    view.vel.x += (k * (goal.x - view.pos.x) - d * (view.vel.x - s.vel.x)) * dt;
-    view.vel.y += (k * (goal.y - view.pos.y) - d * (view.vel.y - s.vel.y)) * dt;
-    view.vel.z += (k * (goal.z - view.pos.z) - d * (view.vel.z - s.vel.z)) * dt;
+    const pace = falling ? follow : 1; // none stuck on the wall
+    view.vel.x += (k * (goal.x - view.pos.x) - d * (view.vel.x - s.vel.x * pace)) * dt;
+    view.vel.y += (k * (goal.y - view.pos.y) - d * (view.vel.y - s.vel.y * pace)) * dt;
+    view.vel.z += (k * (goal.z - view.pos.z) - d * (view.vel.z - s.vel.z * pace)) * dt;
     view.pos.add(tmp.copy(view.vel).mulScalar(dt));
     view.look.lerp(view.look, lookGoal, 1 - Math.exp(-c.lookRate * dt));
-    view.fov += ((falling ? c.fall.fov : c.reveal.fov) - view.fov) * (1 - Math.exp(-2 * dt));
+    const lookAt = tmp3.copy(s.pos).add(view.look);
+    if (falling) {
+      const w = c.close.wall;
+      view.aim.lerp(view.aim, lookAt, 1 - Math.exp(-c.close.aimRate * follow * dt));
+      lookAt.lerp(view.aim, lookAt, fallOut);
+      // Knocked off her as it hits the wall (in real time, as the jolt), and
+      // coming back round as it comes after her.
+      lookAt.add(tmp.copy(knock).mulScalar(smooth(w.knockAt, w.knockAt + w.knockIn, sinceHit) * (1 - follow)));
+    } else view.aim.copy(lookAt);
+    const fov = falling ? c.close.fov + (c.fall.fov - c.close.fov) * fallOut : c.reveal.fov;
+    view.fov += (fov - view.fov) * (1 - Math.exp(-(falling ? 6 : 2) * dt));
 
     // Shaking: the air's, much harder falling, slow lurches and a swinging
     // horizon on top as she falls, and the blow's jolt dying away.
@@ -334,13 +443,14 @@ export function createCrash(deps, options = {}) {
     const n = (seed, rate = 1) => fbm1(view.shakeTime * rate, seed);
     const l = (seed, rate = 1) => fbm1(view.lurchTime * rate, seed);
     const h = (seed) => fbm1(hitTime, seed) * imp;
-    const pa = sh.position * harder, la = c.shake.lurch.position * lurch, ha = c.hit.position;
+    const jolt = falling ? c.close.jolt + (1 - c.close.jolt) * fallOut : 1;
+    const pa = sh.position * harder * jolt, la = c.shake.lurch.position * lurch * jolt, ha = c.hit.position * jolt;
     cam.setPosition(
       view.pos.x + n(301) * pa + l(311) * la + h(321) * ha,
       view.pos.y + n(302) * pa + l(312) * la + h(322) * ha,
       view.pos.z + n(303) * pa + l(313) * la + h(323) * ha,
     );
-    cam.lookAt(tmp.copy(s.pos).add(view.look));
+    cam.lookAt(lookAt);
     const ra = sh.rotationDeg * harder, lr = c.shake.lurch.rotationDeg * lurch, hr = c.hit.rotationDeg;
     cam.rotateLocal(
       n(304, 1.2) * ra + l(314) * lr + h(324) * hr,
@@ -360,6 +470,7 @@ export function createCrash(deps, options = {}) {
     // glide fades (updateFall), and in comes the blow.
     character.stopLayer('flail', 0.1);
     s.flail = 0;
+    braceAtHit = braceWeight;
     character.crossfadeTo('impact', { duration: h.impactFade, loop: false });
     character.animationTime = h.impactFrom;
     limped = false;
@@ -375,6 +486,7 @@ export function createCrash(deps, options = {}) {
       .add(tmp.copy(s.left).mulScalar(-h.spinDeg.tumble))
       .add(tmp.copy(UP).mulScalar(side * h.spinDeg.yaw));
     view.hitTime = 0;
+    view.cut = true;
     sinceHit = 0;
     deps.fadeEl.style.opacity = h.flash;
     // A puff of the cloud's dust off the rock where she struck it, and the
@@ -387,6 +499,7 @@ export function createCrash(deps, options = {}) {
     tmp.add(tmp2.copy(s.left).mulScalar(o.fall.deckRadius * 0.7));
     windFx.anchorCloud(6, tmp, o.fall.deckRadius * 0.8, { opacity: 1 });
     audio.play('cliff-impact', { cut: true });
+    audio.play('fall-rise', { cut: true }); // the fall's build, cut at the black
   }
 
   // How far she falls in `seconds` from the blow, with drag.
@@ -465,6 +578,7 @@ export function createCrash(deps, options = {}) {
   const bodyQ = new Quat(), parentQ = new Quat(), parentInv = new Quat(), worldDelta = new Quat(), localDelta = new Quat();
   const worldAxis = new Vec3();
   let limpWeight = 0, limpTime = 0, limped = false;
+  let braceWeight = 0, braceAtHit = 0;
 
   function bend(pose, i, axis, deg) {
     if (i < 0 || Math.abs(deg) < 1e-3) return;
@@ -516,13 +630,31 @@ export function createCrash(deps, options = {}) {
     flutter.twist = swing(433, 0.7) * l.spine;
   }
 
+  // Bracing against the rock, as far as `w` of the way.
+  function brace(pose, w) {
+    const b = o.react.brace;
+    for (const i of bones.spine) bend(pose, i, AXES.left, b.spine * w);
+    bend(pose, bones.neck, AXES.left, b.head * 0.4 * w);
+    bend(pose, bones.head, AXES.left, b.head * 0.6 * w);
+    for (const k of [0, 1]) {
+      const sign = k ? -1 : 1; // in toward her middle is -belly on her left, +belly on her right
+      bend(pose, bones.upperarm[k], AXES.left, b.arm * w);
+      bend(pose, bones.upperarm[k], AXES.belly, -sign * b.armIn * w);
+      bend(pose, bones.lowerarm[k], AXES.left, b.elbow * w);
+      bend(pose, bones.hand[k], AXES.left, b.hand * w);
+      bend(pose, bones.thigh[k], AXES.left, b.thigh * w);
+      bend(pose, bones.calf[k], AXES.left, b.knee * w);
+    }
+  }
+
   // On top of the clip, and of flightRig's own (off once she is hit).
   const rigModifier = armature.poseModifier;
   armature.poseModifier = (pose) => {
     rigModifier?.(pose);
+    bodyQ.copy(armature.entity.getRotation());
+    if (braceWeight > 0 && (phase === 'reveal' || phase === 'fall')) brace(pose, braceWeight);
     if (limpWeight <= 0 || (phase !== 'fall' && phase !== 'out')) return;
     const w = limpWeight;
-    bodyQ.copy(armature.entity.getRotation());
     for (const i of bones.spine) {
       bend(pose, i, AXES.left, limb.spine.v * w);
       bend(pose, i, AXES.spine, flutter.twist * w);
@@ -572,15 +704,15 @@ export function createCrash(deps, options = {}) {
   function updateReveal(dt) {
     const r = o.react;
     if (!reacted && hitAlong - s.pos.dot(s.forward) < s.speed * r.lead) {
-      // She sees it: she throws herself into a bank away from it, flailing.
+      // She sees it: she throws herself into a bank away from it, bracing.
       reacted = true;
       reactT = t;
-      character.playLayer('flail', 'flail', { mask: deps.bodyMask, loop: true, weight: 0 });
       audio.play('cliff-pass', { gain: 1, pan: -0.7 * o.cliff.side, cut: true });
+      audio.play('cliff-gasp', { cut: true });
     }
     const panic = reacted ? smooth(reactT, reactT + r.lead * 0.6, t) : 0;
-    deps.setFlailClip(r.flail * panic);
-    s.flail = 0.15 + 0.85 * panic;
+    braceWeight = reacted ? smooth(reactT, reactT + r.seconds, t) : 0;
+    s.flail = 0.15 * (1 - braceWeight); // the storm's flutter, stilled as she braces
     flight.update(dt, { turn: -o.cliff.side * panic, climb: 0 });
     // Too late to get out of its way: wherever the bank and the air push her,
     // the rock's edge stays on her line.
@@ -593,6 +725,7 @@ export function createCrash(deps, options = {}) {
 
   function updateFall(dt) {
     const f = o.fall, h = o.hit;
+    braceWeight = braceAtHit * (1 - smooth(0, o.react.release, t));
     fall(dt);
     placeBody();
     if (flightRig.enabled) {
@@ -609,6 +742,7 @@ export function createCrash(deps, options = {}) {
     updateCamera(dt);
     if (phase === 'fall' && t >= f.seconds) {
       for (const name of ['flight-wind', 'flight-whistle', 'turbulence', 'cloth-flap', 'sky-bed']) audio.level(name, 0, 0.05);
+      audio.cut(0.03); // her eyes shut on silence
       phase = 'out';
       shutT = t;
     }
@@ -624,7 +758,14 @@ export function createCrash(deps, options = {}) {
     const d = o.dread;
     dread = smooth(d.build[0], d.build[1], t);
     // Lub-dub: a strong beat and a softer one close behind.
+    const was = beatPhase;
     beatPhase = (beatPhase + dt * (d.beatHz[0] + (d.beatHz[1] - d.beatHz[0]) * dread)) % 1;
+    // And her heart, heard on each, louder as it quickens, until the black.
+    const crossed = (at) => (was < beatPhase ? was < at && beatPhase >= at : was < at || beatPhase >= at);
+    if (phase === 'fall' && dread > 0.02) {
+      if (crossed(0.06)) audio.play('heart-thump', { gain: 0.35 + 0.65 * dread, cut: true });
+      if (crossed(0.28)) audio.play('heart-thump', { gain: 0.6 * (0.35 + 0.65 * dread), cut: true });
+    }
     const pulse = (at, w) => Math.exp(-(((beatPhase - at) / w) ** 2));
     beat = (pulse(0.06, 0.05) + 0.6 * pulse(0.28, 0.05)) * dread;
     const clear = d.clear[0] + (d.clear[1] - d.clear[0]) * dread;
@@ -644,6 +785,10 @@ export function createCrash(deps, options = {}) {
     get phase() {
       return phase;
     },
+    // 0..1, how far the fall's dread has built.
+    get dread() {
+      return dread;
+    },
     // Once it has been black a beat.
     get done() {
       return phase === 'out' && t >= shutT + o.black;
@@ -653,7 +798,8 @@ export function createCrash(deps, options = {}) {
     finish() {
       phase = null;
       root.enabled = false;
-      limpWeight = 0;
+      windFx.visibility = 1;
+      limpWeight = braceWeight = 0;
       armature.lockPelvisY = false;
       character.playbackSpeed = 1;
       deps.canvas.style.filter = '';
@@ -667,7 +813,7 @@ export function createCrash(deps, options = {}) {
       t = 0;
       sounded = reacted = false;
       slow = 1;
-      limpWeight = 0;
+      limpWeight = braceWeight = 0;
       dread = beat = flicker = 0;
       input.from.turn = steer.turn;
       input.from.climb = steer.climb;

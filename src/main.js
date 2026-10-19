@@ -1526,7 +1526,8 @@ const BIRD_CALLS = { withinMetres: 70, every: [6, 16] };
 let bankSwinging = false;
 let bankWhooshWait = 0;
 let birdWait = 4;
-function updateFlightSound(dt) {
+// `calls`: the whooshes of her banks and the birds' calls, as well as the air.
+function updateFlightSound(dt, { calls = true } = {}) {
   const s = flight.state;
   const o = flight.options;
   audio.level('flight-wind', 0.45 + 0.55 * Math.min(s.speed / o.speed, 1));
@@ -1535,6 +1536,7 @@ function updateFlightSound(dt) {
   audio.level('cloth-flap', 0.2 + 0.8 * s.flail, 0.3);
   audio.level('sky-bed', swapped ? 1 : 0, 2);
 
+  if (!calls) return;
   bankWhooshWait -= dt;
   const swing = Math.abs(s.bankVel);
   if (!bankSwinging && swing > BANK_WHOOSH.degPerSecond && bankWhooshWait <= 0) {
@@ -1578,7 +1580,17 @@ function updateCrash(dt) {
   flightCliffs.update(cdt, flight, scene.cameraEntity);
   flightScenery.update(cdt, flight, scene.cameraEntity);
   flightAir.update(cdt, flight, scene.cameraEntity);
-  if (crash.phase !== 'out') updateFlightSound(cdt);
+  const falling = crash.phase === 'fall';
+  if (falling) audio.stop('music-storm', 0.03); // the blow ends it, if it hasn't
+  if (crash.phase !== 'out') updateFlightSound(cdt, { calls: !falling });
+  // Falling, the air roars up with the dread, to the black.
+  if (falling) {
+    const d = crash.dread;
+    audio.level('flight-wind', 1, 0.2);
+    audio.level('turbulence', 0.4 + 0.6 * d, 0.2);
+    audio.level('cloth-flap', 0.5 + 0.5 * d, 0.2);
+    audio.level('flight-whistle', 0.3 + 0.7 * d, 0.2);
+  }
 }
 
 // ── Waking: back under the tree ───────────────────────────────────────────

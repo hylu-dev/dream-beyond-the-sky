@@ -34,6 +34,7 @@ export const SOUNDS = {
   'area-reveal': { gain: 0.45 },
   'bank-whoosh': { gain: 0.45, variants: 3 },
   'cliff-pass': { gain: 0.7, variants: 3 },
+  'cliff-gasp': { gain: 0.8 }, // her, as the rock comes at her
   // Music: the title screen's and the ending's, kept under the night; dawn,
   // from Start until she falls; the flight's; and the storm's, ending on the
   // blow.
@@ -43,6 +44,9 @@ export const SOUNDS = {
   'music-storm': { gain: 1 },
   // The hardest hit in the game; it ducks everything else (see play()).
   'cliff-impact': { gain: 1.5, duck: { to: 0.2, hold: 0.5, release: 2.5 } },
+  // Her fall from it: the build to the blink, and her heart.
+  'fall-rise': { gain: 1.1 },
+  'heart-thump': { gain: 1 },
   // Her breath as she wakes under the tree.
   'wake-gasp': { gain: 0.8 },
   'wake-pant': { gain: 0.6 },

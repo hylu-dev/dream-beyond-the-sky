@@ -195,8 +195,47 @@ export const SOUNDS = [
     reverb: { seconds: 2, wet: 0.2 },
   },
   {
+    name: 'fall-wind', layer: true, seconds: 6, takes: 3, influence: 0.6,
+    text: 'Violent freefall wind: plummeting through the open sky, air roaring and tearing past faster and faster, a howling rush building and building to a deafening roar, cloth flapping wildly. One continuous build. No music, no voice.',
+  },
+  {
+    name: 'fall-riser', layer: true, seconds: 6, takes: 3, influence: 0.6,
+    text: 'Cinematic horror tension riser: a dark dissonant roar of distorted noise and low grinding metallic drones climbing in pitch and intensity, more and more aggressive, building to a violent peak. Sound design only: no music, no melody, no drums, no voice.',
+  },
+  {
+    name: 'heartbeat', layer: true, seconds: 1, takes: 4, influence: 0.7,
+    text: 'One single deep heavy heartbeat: a close, muffled lub-dub thump felt in the chest, tense and cinematic. Exactly one beat, then silence. No music.',
+  },
+  {
+    // As she falls from the blow (crash.js): one build, the length of the
+    // fall, from the blow to the moment her eyes shut, where it is cut dead.
+    // The riser, slowed to two thirds (darker, and the fall's length), the
+    // freefall wind swelling under it and a sub climbing from 30 Hz, all
+    // driven into a soft clip for grit, then swelled as a whole, so it keeps
+    // climbing to the very end.
+    name: 'fall-rise', seconds: 5.2, fade: 0.02, lufs: -16,
+    mix: [[
+      ['fall-riser', 2, 0, 0, 'asetrate=44100*0.67,aresample=44100'],
+      ['fall-wind', 2, -2, 0, `volume='0.12+0.88*pow(t/5.2,1.6)':eval=frame`],
+      ['lavfi', `aevalsrc='sin(2*PI*(30*t+2.5*t*t))*pow(t/5.2,2)':s=44100:d=5.2`, -6],
+    ]],
+    mixFilter: `volume=6dB,asoftclip=type=tanh,volume=-6dB,volume='0.1+0.9*pow(t/5.2,2)':eval=frame`,
+  },
+  {
+    // One thump of her heart as she falls (crash.js), played on each beat of
+    // the screen's throb: the lub, and the dub softer. Driven into a soft
+    // clip, so its overtones carry it on small speakers.
+    name: 'heart-thump', fade: 0.1, lufs: -16,
+    mix: [[['heartbeat', 1, 0, 0, 'atrim=0:0.4,bass=g=4:f=60,volume=12dB,asoftclip=type=tanh,volume=-12dB']]],
+  },
+  {
     name: 'cliff-pass', seconds: 3, takes: 3, use: [1, 2, 3],
     text: 'A huge floating rock cliff rushing past at speed: a deep heavy whoosh of air compressing against stone, a doppler air sweep passing close and receding. No music.',
+  },
+  // She gasps as the rock comes at her out of the cloud (src/crash.js).
+  {
+    name: 'cliff-gasp', seconds: 1.5, takes: 1, influence: 0.6, fade: 0.15,
+    text: 'A young woman startled in sudden shock: a quick short gasp with a tiny breathy catch of voice, like a strangled huh. Breath only, no words. Dry, close-mic, intimate, quiet room. No music.',
   },
   {
     name: 'birds-distant', seconds: 4, takes: 3, use: [1, 3],
