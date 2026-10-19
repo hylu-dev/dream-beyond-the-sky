@@ -10,6 +10,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { SOUNDS as MADE } from './audio-sounds.mjs';
+import { TestMedia } from './audio-test-media.mjs';
 
 const DIR = fileURLToPath(new URL('../public/assets/audio/', import.meta.url));
 let failures = 0;
@@ -41,8 +42,10 @@ class Node {
   constructor() { this.targets = []; }
   connect(n) { this.targets.push(n); return n; }
 }
-class FakeContext {
-  constructor() { this.currentTime = 0; this.state = 'suspended'; this.destination = new Node(); }
+const decodedNames = [];
+class FakeContext extends EventTarget {
+  constructor() { super(); this.currentTime = 0; this.state = 'suspended'; this.destination = new Node(); }
+  createMediaElementSource(media) { const n = new Node(); n.media = media; return n; }
   createGain() { const n = new Node(); n.gain = new Param(1); return n; }
   createStereoPanner() { const n = new Node(); n.pan = new Param(0); return n; }
   createDynamicsCompressor() { const n = new Node(); n.threshold = new Param(); n.ratio = new Param(); return n; }
@@ -54,9 +57,14 @@ class FakeContext {
   }
   resume() { this.state = 'running'; events.push(['resume']); }
   suspend() { this.state = 'suspended'; events.push(['suspend']); }
-  async decodeAudioData(buffer) { return { name: buffer.name, duration: durations[buffer.name] }; }
+  async decodeAudioData(buffer) {
+    decodedNames.push(buffer.name);
+    return { name: buffer.name, duration: durations[buffer.name], length: Math.round(durations[buffer.name] * 48000), numberOfChannels: 2 };
+  }
 }
 globalThis.AudioContext = FakeContext;
+globalThis.Audio = TestMedia;
+TestMedia.durations = durations;
 globalThis.fetch = async (url) => {
   const name = url.split('/').pop().replace(/\.mp3$/, '');
   return { arrayBuffer: async () => ({ name }) };
@@ -94,6 +102,10 @@ for (const [name, sound] of Object.entries(SOUNDS)) {
 const audio = createAudio();
 await new Promise((r) => setTimeout(r, 10)); // let the loads settle
 const ctx = audio.ctx;
+check(!decodedNames.includes('music-night') && !decodedNames.includes('music-flight'), 'long music never enters decodeAudioData');
+check(decodedNames.includes('music-dawn') && decodedNames.includes('music-storm'), 'timed dawn and storm cues remain decoded');
+check(audio.stats().streaming.reduce((n, track) => n + track.players, 0) === 3, 'long music has exactly three reusable media players');
+check(TestMedia.instances.find(media => media.name === 'music-flight').loads === 0, 'flight loading waits for interaction');
 const step = (seconds, dt = 1 / 60) => {
   for (let t = 0; t < seconds; t += dt) {
     if (ctx.state === 'running') ctx.currentTime += dt;
@@ -153,29 +165,12 @@ check(Math.abs(launch.stopAt - (ctx.currentTime + 0.2)) < 1e-6, 'stop() stops on
 audio.play('bank-whoosh');
 check(/^bank-whoosh-[123]$/.test(starts().at(-1)[1]), 'a sound with variants plays one of them');
 
-// Opening lift follows track time, including cutscene skips, without moving
-// the source cue or interfering with an early cut/storm fade.
-for (const [offset, initialLift] of [[0, 2], [5.165, 2], [11.25, 1.5], [13, 1]]) {
-  audio.play('music-flight', { offset, delay: 0.2, cut: true });
-  const event = starts().at(-1), src = event[3];
-  check(src.offset === offset && event[2] === ctx.currentTime + 0.2, `flight at ${offset}s preserves playback offset and start time`);
-  const opening = src.targets[0];
-  const envelope = opening.gain.curves[0];
-  let level = opening;
-  if (offset < 12) {
-    check(envelope?.t === event[2] && envelope.d === 12 - offset, 'opening lift follows remaining track time');
-    check(envelope?.curve[0] === initialLift && envelope.curve.at(-1) === 1, 'opening is lifted then returns to normal volume');
-    level = opening.targets[0];
-  } else {
-    check(!envelope, 'later playback uses the normal music level');
-  }
-  check(level.gain.value === SOUNDS['music-flight'].gain, 'base mix level is unchanged');
-  if (offset === 5.165) audio.cut(0.45);
-  else audio.stop('music-flight', 5);
-  const seconds = offset === 5.165 ? 0.45 : 5;
-  check(src.stopAt === ctx.currentTime + seconds && level.gain.targets.at(-1).v === 0,
-    'skip/stop fades independently of the opening lift');
-}
+// Detailed media buffering, crossfades and offsets: verify-streaming-music.mjs.
+audio.play('music-flight', { offset: 5.165, cut: true });
+check(audio.stats().streaming.find(track => track.name === 'music-flight').active === 1, 'flight is routed to streaming playback');
+audio.cut(0.45);
+step(1);
+check(audio.stats().streaming.find(track => track.name === 'music-flight').active === 0, 'cut cancels streaming music too');
 
 audio.held = true;
 check(ctx.state === 'suspended', 'holding suspends the context');

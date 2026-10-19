@@ -1,4 +1,5 @@
 import { assetUrl } from './assetUrl.js';
+import { createStreamingMusic } from './streamingMusic.js';
 // The game's sound, in Web Audio: beds that loop under the scene at levels
 // the game sets every frame, and one-shots on its moments. The files are
 // public/assets/audio, made by tools/process-audio.mjs (prompts in
@@ -6,10 +7,9 @@ import { assetUrl } from './assetUrl.js';
 // `gain` is each sound's base level, and the game asks for 0..1 of it.
 //
 // Nothing plays until the page has been clicked or a key pressed (unlock(),
-// from the gesture's own handler); the sounds load in the background and any
-// that asked for before they arrive are skipped. A bed loops by overlapping
-// copies of itself with an equal-power crossfade, which doesn't depend on
-// the browser decoding an mp3 gaplessly.
+// from the gesture's own handler). Long music streams through media elements;
+// short sounds decode in the background and are skipped if not ready. Beds
+// overlap copies with equal-power crossfades, without relying on gapless MP3.
 
 export const SOUNDS = {
   // Beds.
@@ -38,11 +38,11 @@ export const SOUNDS = {
   // Music: the title screen's and the ending's, kept under the night; dawn,
   // from Start until she falls; the flight's; and the storm's, ending on the
   // blow.
-  'music-night': { loop: true, gain: 0.55, crossfade: 6 },
+  'music-night': { stream: true, loop: true, gain: 0.55, crossfade: 6 },
   'music-dawn': { gain: 0.8 },
   // Lift the recording's quiet opening by ~6 dB, then ease back as its
   // orchestra fills out. These are track seconds, including after a skip.
-  'music-flight': { gain: 0.8, introLift: { gain: 2, hold: 10.5, end: 12 } },
+  'music-flight': { stream: true, gain: 0.8, introLift: { gain: 2, hold: 10.5, end: 12 } },
   'music-storm': { gain: 1 },
   // The hardest hit in the game; it ducks everything else (see play()).
   'cliff-impact': { gain: 1.5, duck: { to: 0.2, hold: 0.5, release: 2.5 } },
@@ -81,9 +81,12 @@ export function createAudio(options = {}) {
   // Everything but a ducking one-shot goes through `rest`, for it to duck.
   const rest = ctx.createGain();
   rest.connect(master);
+  const music = createStreamingMusic(ctx, rest, SOUNDS, o.url);
+  music.prepare('music-night');
 
   const buffers = {}; // name -> [AudioBuffer, ...]
   for (const [name, sound] of Object.entries(SOUNDS)) {
+    if (sound.stream) continue;
     const files = sound.variants ? Array.from({ length: sound.variants }, (_, i) => `${name}-${i + 1}`) : [name];
     Promise.all(files.map((f) => fetch(`${o.url}${f}.mp3`).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b))))
       .then((list) => (buffers[name] = list))
@@ -97,7 +100,7 @@ export function createAudio(options = {}) {
 
   const beds = {};
   for (const [name, sound] of Object.entries(SOUNDS)) {
-    if (!sound.loop) continue;
+    if (!sound.loop || sound.stream) continue;
     const gain = ctx.createGain();
     gain.gain.value = 0;
     gain.connect(rest);
@@ -142,10 +145,12 @@ export function createAudio(options = {}) {
     unlock() {
       unlocked = true;
       if (!held && ctx.state !== 'running') ctx.resume();
+      music.unlock();
     },
     // Hold everything (the scene is paused) or let it go on.
     set held(v) {
       held = v;
+      music.held = v;
       if (!unlocked) return;
       if (v) ctx.suspend();
       else ctx.resume();
@@ -154,6 +159,7 @@ export function createAudio(options = {}) {
 
     // A bed's level, 0..1 of its gain, reached over about `seconds`.
     level(name, v, seconds = o.levelSeconds) {
+      if (SOUNDS[name].stream) { music.level(name, v, seconds); return; }
       const bed = beds[name];
       bed.target = Math.min(Math.max(v, 0), 1);
       bed.seconds = seconds;
@@ -165,6 +171,10 @@ export function createAudio(options = {}) {
     // its level as it strikes, holds it `hold` seconds and lets it back over
     // about `release`.
     play(name, { gain = 1, pan = 0, delay = 0, offset = 0, cut = false } = {}) {
+      if (SOUNDS[name].stream) {
+        music.play(name, { gain, delay, offset, cut });
+        return;
+      }
       const list = buffers[name];
       if (!unlocked || held || !list) return;
       const src = ctx.createBufferSource();
@@ -172,22 +182,7 @@ export function createAudio(options = {}) {
       const at = ctx.currentTime + delay;
       const g = ctx.createGain();
       g.gain.value = SOUNDS[name].gain * gain;
-      let node = src;
-      const lift = SOUNDS[name].introLift;
-      if (lift && offset < lift.end) {
-        const opening = ctx.createGain();
-        const seconds = lift.end - offset;
-        const curve = Float32Array.from({ length: N }, (_, i) => {
-          const t = offset + seconds * i / (N - 1);
-          const u = Math.min(Math.max((t - lift.hold) / (lift.end - lift.hold), 0), 1);
-          return 1 + (lift.gain - 1) * (1 - u * u * (3 - 2 * u));
-        });
-        opening.gain.setValueCurveAtTime(curve, at, seconds);
-        // A separate node lets stop()/cut() fade out immediately even while
-        // the opening envelope is scheduled. It never moves the source cue.
-        node = node.connect(opening);
-      }
-      node = node.connect(g);
+      let node = src.connect(g);
       if (pan) {
         const p = ctx.createStereoPanner();
         p.pan.value = Math.min(Math.max(pan, -1), 1);
@@ -212,6 +207,7 @@ export function createAudio(options = {}) {
 
     // Fade out one sound's one-shots still sounding.
     stop(name, seconds = 0.3) {
+      if (SOUNDS[name].stream) { music.stop(name, seconds); return; }
       const now = ctx.currentTime;
       for (const shot of sounding[name] ?? []) {
         shot.g.gain.setTargetAtTime(0, now, seconds / 3);
@@ -223,6 +219,7 @@ export function createAudio(options = {}) {
 
     // Fade out the cut-scene's one-shots still sounding.
     cut(seconds = 0.3) {
+      music.cut(seconds);
       const now = ctx.currentTime;
       for (const { src, g } of cuttable) {
         g.gain.setTargetAtTime(0, now, seconds / 3);
@@ -233,6 +230,7 @@ export function createAudio(options = {}) {
 
     update(dt) {
       if (!unlocked || held) return;
+      music.update(dt);
       const now = ctx.currentTime;
       for (const bed of Object.values(beds)) {
         bed.value += (bed.target - bed.value) * (1 - Math.exp(-dt / Math.max(bed.seconds, 1e-3)));
@@ -245,6 +243,13 @@ export function createAudio(options = {}) {
           bed.next = 0;
         }
       }
+    },
+    // Read-only diagnostics, also exposed through window.__demo.audio.
+    stats() {
+      const decoded = Object.values(buffers).flat();
+      return { decodedBuffers: decoded.length,
+        decodedBytes: decoded.reduce((sum, buffer) => sum + buffer.length * buffer.numberOfChannels * 4, 0),
+        streaming: music.stats() };
     },
   };
 }

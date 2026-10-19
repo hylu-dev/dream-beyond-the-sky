@@ -20,7 +20,7 @@ npm run build
 npm run preview
 ```
 
-Checks: `node tools/verify-performance.mjs`, `node tools/verify-flight-atmosphere.mjs`, and `node tools/verify-cliff-demo.mjs`. Audio checks use `node tools/verify-audio.mjs` and require FFmpeg/ffprobe.
+Checks: `node tools/verify-performance.mjs`, `node tools/verify-flight-atmosphere.mjs`, `node tools/verify-cliff-demo.mjs`, and `node tools/verify-streaming-music.mjs`. Audio asset checks use `node tools/verify-audio.mjs` and require FFmpeg/ffprobe.
 
 Add `?fly=1&debug=1` to jump to flight and expose `window.__demo` for debugging.
 

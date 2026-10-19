@@ -100,6 +100,10 @@ Only the flight's music comes from this piece. The edge keeps the dawn music, an
 
 The playback mix lifts the flight recording's quiet opening by about 6 dB through track time 10.5 s, then smoothly returns to its normal level at 12 s (`introLift` in `src/audio.js`). This brings the opening forward without shifting the track, its 7.165 s burst, the title cue, or the storm. Skipped playback joins the envelope at the corresponding track time; cut and stop fades remain independent.
 
+The flight and menu/ending tracks stream through HTML audio elements into the existing Web Audio mixer (`src/streamingMusic.js`). They are excluded from full-file decoding. The menu uses two reusable players for its six-second overlap; flight uses one. Menu loading starts at setup, and the first interaction primes all three players and begins buffering flight during the opening cinematic. Dawn, storm and short effects remain decoded buffers.
+
+If loading or buffering delays flight playback, it seeks forward to the position of the original cue on the AudioContext clock. A hold or browser audio interruption pauses the media elements too. This preserves the intended musical timeline instead of restarting late; media starts/seeks are not sample-accurate and need browser listening checks. No track offsets, title timings or storm timings were changed.
+
 Style of Music:
 ```
 Contemporary cinematic orchestral score with Chinese solo instruments, instrumental, D Dorian, 96 BPM, 4/4. Opens hushed and tense: trembling string tremolo, high and low, a held breath of suspense, slowly rising. Then a sudden total silence. Then an instant epic burst: the full orchestra at full force, soaring brass and strings, timpani and a cymbal crash, a vast sense of lift. Then it eases into something elegant and flowing that can go on: spiccato string ostinatos and rippling woodwind figures, light percussion, a short understated motif on erhu with subtle slides and grace notes, passed between high strings, horns and a breathy dizi, over suspended chords that never fully resolve. Modern, graceful, airy, like wind over a vast sky. Sophisticated, not sentimental.

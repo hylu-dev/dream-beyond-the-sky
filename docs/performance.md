@@ -33,3 +33,11 @@ npm run build
 ```
 
 The performance check covers initial invisibility, exact-zero hiding, faint nonzero visibility, fade-in restoration, and shrouds moved while hidden or parked. The atmosphere check also verifies birds-only startup avoids the atlas, alongside the existing sustained-flight, geometry, buffer reuse and scenery checks. The cliff check exercises anchored clouds and both shader source paths.
+
+## Music memory
+
+The 188-second menu track and 76-second flight track now stream via three reusable media elements instead of `decodeAudioData`. At 48 kHz stereo, their full decoded buffers would occupy about 97 MiB combined (89 MiB at 44.1 kHz). Those application-owned buffers are no longer allocated; actual browser-managed buffering and total memory savings still require measurement in a browser. Audio file quality and the remaining decoded effects are unchanged.
+
+`node tools/verify-streaming-music.mjs` exercises the transport with controllable media elements: staged loading, several loop seams, equal-power overlap, delayed starts, skips, opening volume lift, buffering catch-up, autoplay rejection, holds, interruptions, cancellation and replay. `node tools/verify-audio.mjs` also checks that the two streamed tracks never reach the decoder while dawn and storm still do. `window.__demo.audio.stats()` reports actual decoded buffer bytes and stream readiness/positions in a debug session.
+
+No browser connection was available during implementation. Live autoplay policies, seek latency, crossfade sound and real memory consumption remain to be verified on desktop and mobile browsers.
