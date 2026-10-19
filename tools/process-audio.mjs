@@ -8,7 +8,10 @@
 // layers, each trimmed, filtered and brought to LAYER_LUFS before its own dB
 // and delay; it keeps its lead-in, so the layers' timing holds. A layer can
 // be synthesized instead (sound 'lavfi', its source in place of the take),
-// and `reverb` sends the mix through a long dark convolution tail.
+// and `reverb` sends the mix through a long dark convolution tail. A piece
+// of music keeps its lead-in too, and is cut to its `seconds`; one made
+// elsewhere (in Suno) is `file`, under art/audio, in place of takes, and
+// can start `from` seconds into it, easing in over `fadeIn`.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -16,7 +19,8 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { SOUNDS } from './audio-sounds.mjs';
 
-const RAW = fileURLToPath(new URL('../art/audio/raw/', import.meta.url));
+const ART = fileURLToPath(new URL('../art/audio/', import.meta.url));
+const RAW = `${ART}raw/`;
 const OUT = fileURLToPath(new URL('../public/assets/audio/', import.meta.url));
 // Built here first, and swapped in only once every sound has been made, so
 // a failure leaves the game's sounds as they were.
@@ -78,18 +82,23 @@ for (const sound of SOUNDS) {
         mix(layers, file, sound.mixFilter, sound.reverb);
         return file;
       })
-    : (sound.use ?? [1]).map((take) => `${RAW}${sound.name}-${take}.mp3`);
+    : sound.file
+      ? [`${ART}${sound.file}`]
+      : (sound.use ?? [1]).map((take) => `${RAW}${sound.name}-${take}.mp3`);
   sources.forEach((src, i) => {
     const dst = `${NEXT}${sound.name}${sources.length > 1 ? `-${i + 1}` : ''}.mp3`;
-    // One-shots start on their first sound (a mix on its own lead-in, cut
-    // to its `seconds`) and fade out at the end.
-    const start = sound.mix ? (sound.seconds ? `atrim=0:${sound.seconds},` : '') : `${TRIM},`;
-    const shape = sound.loop ? '' : `${start}areverse,afade=t=in:d=${sound.fade ?? TAIL_FADE},areverse,`;
+    // One-shots start on their first sound (a mix or a piece of music on its
+    // own lead-in, cut to its `seconds`) and fade out at the end.
+    const from = sound.from ?? 0;
+    const cut = `${sound.seconds ? `atrim=start=${from}:end=${from + sound.seconds},asetpts=PTS-STARTPTS,` : ''}${sound.fadeIn ? `afade=t=in:d=${sound.fadeIn},` : ''}`;
+    const start = sound.mix || sound.music ? cut : `${TRIM},`;
+    // A loop of music is only cut: its crossfade (src/audio.js) makes the seam.
+    const shape = sound.loop ? (sound.music ? cut : '') : `${start}areverse,afade=t=in:d=${sound.fade ?? TAIL_FADE},areverse,`;
     const lufs = loudness(src, shape);
     const gain = (sound.lufs ?? (sound.loop ? BED_LUFS : SHOT_LUFS)) - lufs;
     const limit = `alimiter=limit=${10 ** (PEAK_DB / 20)}:attack=5:release=60:level=false`;
     // Limited at four times the rate, to catch the peaks between samples.
-    ffmpeg(['-i', src, '-af', `${shape}volume=${gain.toFixed(2)}dB,aresample=176400,${limit},aresample=44100`, '-ar', '44100', '-b:a', sound.loop ? '128k' : '160k', dst]);
+    ffmpeg(['-i', src, '-vn', '-af', `${shape}volume=${gain.toFixed(2)}dB,aresample=176400,${limit},aresample=44100`, '-ar', '44100', '-b:a', sound.loop ? '128k' : '160k', dst]);
     console.log(`${dst.slice(NEXT.length).padEnd(22)} ${duration(dst).toFixed(2)}s  ${lufs.toFixed(1)} LUFS ${gain >= 0 ? '+' : ''}${gain.toFixed(1)} dB`);
   });
 }
@@ -117,7 +126,11 @@ const rows = SOUNDS.map((sound) => {
     const on = used.has(`${sound.name}-${t}`);
     return `<td class="${on ? 'used' : ''}"><div>take ${t}${on ? ' · used' : ''}</div>${player(`raw/${sound.name}-${t}.mp3`, sound.loop)}</td>`;
   });
-  const about = sound.text ?? `Mixed from ${[...new Set(sound.mix.flat().map(([n]) => n))].join(', ')}`;
+  const about =
+    sound.text ??
+    (sound.file ? `From art/audio/${sound.file}` : sound.plan
+      ? sound.plan.map((p) => `${p.text ?? ''} ${p.seconds} s: ${p.styles.join(', ')}`).join('<br>')
+      : `Mixed from ${[...new Set(sound.mix.flat().map(([n]) => n))].join(', ')}`);
   return `<tr><th>${sound.name}${sound.loop ? ' <small>loop</small>' : ''}<p>${about}</p></th>${out}${cells.join('')}</tr>`;
 });
 writeFileSync(

@@ -11,10 +11,21 @@
 // dB are between layers, and `mixFilter` run over the whole. A layer named
 // 'lavfi' is synthesized by ffmpeg from the source in its take's place, and
 // `reverb` ({ seconds, wet }) puts the mix in a long dark space. `lufs`
-// makes a sound louder (or quieter) than the rest, for the big moments. No music: that is made separately, and nothing of the girl
+// makes a sound louder (or quieter) than the rest, for the big moments.
+// A `music` sound is made with ElevenLabs' music model instead, from its
+// `text` as a prompt `seconds` long, always instrumental, or from a `plan`:
+// sections, each `seconds` long with its `styles`, the styles it must
+// `avoid` and an optional `text` cue, generated as one piece. A music
+// one-shot keeps its lead-in and is cut to its `seconds`, so it can be made
+// to run on past its peak and stop dead there. The game's score is made
+// separately (in Suno); this is only the storm's sting. Nothing of the girl
 // sleeping, stepping or falling.
 
 const NO_MUSIC = 'No music, no melody, no voices.';
+// The score's world, shared with the Suno cues: a Western cinematic
+// orchestra in D minor, Chinese instruments only as a solo colour.
+const SCORE = ['cinematic orchestral score', 'full Western orchestra', 'D minor', 'dark and ominous', 'instrumental only', 'great production quality'];
+const UNSUNG = ['vocals', 'singing', 'choir', 'humming', 'lyrics', 'spoken word'];
 const BED = 'Seamless steady loop, no distinct events.';
 // Starts a layer on its attack rather than its first faint sound.
 const ATTACK = 'silenceremove=start_periods=1:start_threshold=-30dB:start_silence=0';
@@ -234,4 +245,47 @@ export const SOUNDS = [
     text: 'Close-mic: a young woman lets out one long, soft sigh of relief, it was only a dream. Breath only, no words, no moan. Dry, intimate. No music.',
   },
 
+  // ── Music ───────────────────────────────────────────────────────────────
+  {
+    // Dawn, from Start until she falls off the edge (Suno, docs/music.md):
+    // played from its own start, its swell peaks 15.0-15.7 s in, on the gong.
+    // Cut a little past her fall (28.2 s), where main.js eases it out.
+    name: 'music-dawn', music: true, file: 'music/the-great-reveal.mp3', seconds: 32, fade: 1, lufs: -18,
+  },
+  {
+    // The flight (Suno's 风过长空), from its start as she bursts up: its quiet
+    // intro, a breath, and its burst (its first sound at 7.165 s), which
+    // comes as the area's title shows (main.js, FLIGHT_MUSIC); on to the
+    // storm, 64 s in (main.js, CRASH_AFTER), which eases it out over 5 s.
+    name: 'music-flight', music: true, file: 'music/feng-guo-chang-kong.mp3', seconds: 76, fade: 3, lufs: -18,
+  },
+  {
+    // The title screen's, and the ending's (Suno's Hush of a Night Sky): one
+    // loop of all but its fade-out, crossfading on itself.
+    name: 'music-night', loop: true, music: true, file: 'music/hush-of-a-night-sky.mp3', seconds: 188,
+  },
+  {
+    // The storm swallowing her flight, 7.3 s before the cliff: the flight's
+    // soaring turned ominous, building harder and harder. Made to run on past
+    // its peak; take 3 swells from silence at 0.65 s to a crash at 6.9-7.25 s,
+    // and is cut dead there, so the impact takes over.
+    name: 'music-storm', music: true, seconds: 7.3, takes: 3, use: [3], fade: 0.02, lufs: -18,
+    plan: [
+      {
+        text: '[Storm rising]', seconds: 3,
+        styles: [...SCORE, 'soaring flight theme turned ominous', 'string tremolo', 'low brass swell', 'timpani roll', 'a lone erhu cry over the orchestra', '96 BPM', 'tense and building'],
+        avoid: [...UNSUNG, 'guzheng', 'plucked strings', 'happy', 'major key', 'silence', 'electronic', 'synth', 'piano'],
+      },
+      {
+        text: '[Crescendo] {timpani and taiko rolls building}', seconds: 5,
+        styles: ['rising dissonant string clusters', 'brass swells', 'timpani and taiko rolls', 'deep orchestral booms', 'relentless crescendo', 'louder and louder'],
+        avoid: [...UNSUNG, 'guzheng', 'resolution', 'calm', 'dropping out', 'quiet', 'fade out', 'ending'],
+      },
+      {
+        text: '[Peak] {full force}', seconds: 3,
+        styles: ['maximum intensity', 'full orchestra and taiko at full force', 'dissonant brass and string clusters', 'deep booms', 'climax sustained'],
+        avoid: [...UNSUNG, 'guzheng', 'ending', 'final chord', 'resolution', 'fade out', 'silence', 'dropping out', 'quiet'],
+      },
+    ],
+  },
 ];

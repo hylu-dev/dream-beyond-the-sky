@@ -289,13 +289,17 @@ const SKY_GRADE = { share: 0.35, herShare: 0.85, settle: 0.3, after: 1, seconds:
 // begins, once the cloud bank is behind her; its CSS animation runs the rest,
 // for `seconds` (as in index.html), and the controls come up as it goes.
 const AREA_TITLE = { after: 1.2, seconds: 6.5, controlsBefore: 0.8 };
+// The flight's music (from the launch) bursts `titleAt` seconds in, which
+// comes `titleIn` seconds after the area's title starts, as it shows.
+const FLIGHT_MUSIC = { titleAt: 7.165, titleIn: 0.8 };
 
 // After this long flying free she is caught by the storm and the crash runs
 // (crash.js) to the end; ?crash=N for N seconds instead. For testing,
 // ?impact=1 goes straight to it, and so does I, in flight or on the title.
 // The flight's cliffs stop `clearMargin` metres short of where the storm
-// will meet her, so none stand in its way to be moved.
-const CRASH_AFTER = Number(new URLSearchParams(location.search).get('crash')) || 32;
+// will meet her, so none stand in its way to be moved. 58.9 s brings the
+// storm in at 1:04.0 of the flight's music, as its phrase turns dark.
+const CRASH_AFTER = Number(new URLSearchParams(location.search).get('crash')) || 58.9;
 const CRASH = { clearMargin: 40 };
 let crashNow = new URLSearchParams(location.search).get('impact') === '1';
 
@@ -763,6 +767,7 @@ function startAwakening() {
   audio.unlock();
   audio.play('ui-start');
   audio.play('approach-swell', { delay: 0.15, cut: true });
+  audio.play('music-dawn', { cut: true }); // its swell peaks on the gong
   menuEl.classList.remove('show');
   menuEl.classList.add('leaving');
   menuEl.setAttribute('aria-hidden', 'true');
@@ -979,7 +984,9 @@ function updateBackOut(dt) {
   lookAlong(viewYaw, VIEW.pitchDeg + (BACK_OUT.pitchDeg - VIEW.pitchDeg) * u);
   camFov = VIEW.fov + (BACK_OUT.fov - VIEW.fov) * u;
   applyCamera(dt, VIEW.sway);
-  if (t >= 1) setState('brink');
+  if (t >= 1) {
+    setState('brink');
+  }
 }
 
 // From the moment the camera stops, it holds where it is, looking the same
@@ -1066,6 +1073,8 @@ function updateAir(dt) {
   audio.level('dawn-bed', smooth(-6, 10, el), 2);
   audio.level('island-wind', Math.min(0.5 + 1.5 * gusty, 1));
   audio.level('rumble', rumble, 0.1);
+  // The night's music, on the title screen and from her waking.
+  audio.level('music-night', state === 'menu' || woken ? 1 : 0, 3);
 }
 
 const tmpVec = new Vec3();
@@ -1154,6 +1163,7 @@ function updateIslandSequence(dt) {
       }
       updateHoldCamera(dt);
       if (stateTime >= EDGE.lipAt && stopTime < 0) {
+        audio.stop('music-dawn', 1); // she falls in silence
         edge.copy(brink).add(vanishOffset(EDGE.lipAt, tmpPos));
         stopTime = 0;
       }
@@ -1203,6 +1213,7 @@ let confidence = 0; // seconds of feel for it since, sooner while steering
 const skyAnchor = new Vec3(); // her position when the sky scene took over
 
 function startLaunch() {
+  audio.play('music-flight', { cut: true }); // from its start, as she bursts up
   lipAlong = edge.dot(edgeDir);
   const start = new Vec3().copy(edgeDir).mulScalar(LAUNCH.ahead).add(edge);
   start.y = edge.y - LAUNCH.below;
@@ -1340,6 +1351,8 @@ function swapToSky() {
 
 // ?fly=1: straight into the flight, already in the sky.
 function startFlyDirect() {
+  // Started on, so its burst still comes as the area's title shows.
+  audio.play('music-flight', { cut: true, offset: FLIGHT_MUSIC.titleAt - AREA_TITLE.after - FLIGHT_MUSIC.titleIn });
   flight.reset(FLY_START, EDGE.headingDeg);
   character.playAnimation('idle', { loop: true });
   character.playbackSpeed = 0.6;
@@ -1549,6 +1562,8 @@ function startCrash() {
   controlsEl.setAttribute('aria-hidden', 'true');
   document.body.classList.add('cinema');
   crash.start(steerInput);
+  audio.stop('music-flight', 5); // easing out under the storm's rise
+  audio.play('music-storm', { cut: true }); // 7.3 s, to the blow
   setState('crash');
 }
 

@@ -82,7 +82,8 @@ for (const [name, sound] of Object.entries(SOUNDS)) {
     const d = probe(file);
     durations[base] = d;
     const { lufs, peak } = loudness(file);
-    const okLength = sound.loop ? d >= 4 * AUDIO_DEFAULTS.crossfade : d > 0.3 && d < 15;
+    // A piece of music may run long; a sound effect shouldn't.
+    const okLength = sound.loop ? d >= 4 * (sound.crossfade ?? AUDIO_DEFAULTS.crossfade) : d > 0.3 && (made[name].music || d < 15);
     const target = made[name].lufs;
     check(okLength && (target ? Math.abs(lufs - target) < 2.5 : lufs > -27 && lufs < -15) && peak < -0.5, `${base}.mp3: ${d.toFixed(2)} s, ${lufs.toFixed(1)} LUFS, ${peak.toFixed(1)} dBTP`);
   }

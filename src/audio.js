@@ -3,8 +3,7 @@ import { assetUrl } from './assetUrl.js';
 // the game sets every frame, and one-shots on its moments. The files are
 // public/assets/audio, made by tools/process-audio.mjs (prompts in
 // tools/audio-sounds.mjs) and all levelled alike, so the mix lives here:
-// `gain` is each sound's loudest, and the game asks for 0..1 of it. No
-// music: that comes separately.
+// `gain` is each sound's loudest, and the game asks for 0..1 of it.
 //
 // Nothing plays until the page has been clicked or a key pressed (unlock(),
 // from the gesture's own handler); the sounds load in the background and any
@@ -35,6 +34,13 @@ export const SOUNDS = {
   'area-reveal': { gain: 0.45 },
   'bank-whoosh': { gain: 0.45, variants: 3 },
   'cliff-pass': { gain: 0.7, variants: 3 },
+  // Music: the title screen's and the ending's, kept under the night; dawn,
+  // from Start until she falls; the flight's; and the storm's, ending on the
+  // blow.
+  'music-night': { loop: true, gain: 0.55, crossfade: 6 },
+  'music-dawn': { gain: 0.8 },
+  'music-flight': { gain: 0.8 },
+  'music-storm': { gain: 1 },
   // The hardest hit in the game; it ducks everything else (see play()).
   'cliff-impact': { gain: 1.5, duck: { to: 0.2, hold: 0.5, release: 2.5 } },
   // Her breath as she wakes under the tree.
@@ -51,7 +57,7 @@ export const SOUNDS = {
 export const AUDIO_DEFAULTS = {
   url: assetUrl('audio/'),
   master: 0.9,
-  crossfade: 1.5, // seconds a bed's loop overlaps itself
+  crossfade: 1.5, // seconds a bed's loop overlaps itself, unless it says
   lookahead: 1, // seconds of a bed scheduled ahead
   levelSeconds: 0.5, // how quickly a bed follows its level, unless told
 };
@@ -89,7 +95,7 @@ export function createAudio(options = {}) {
     const gain = ctx.createGain();
     gain.gain.value = 0;
     gain.connect(rest);
-    beds[name] = { name, gain, max: sound.gain, target: 0, value: 0, seconds: o.levelSeconds, next: 0 };
+    beds[name] = { name, gain, max: sound.gain, target: 0, value: 0, seconds: o.levelSeconds, next: 0, copies: new Set() };
   }
 
   // Keep a bed's copies queued `lookahead` ahead, each starting a crossfade
@@ -98,7 +104,7 @@ export function createAudio(options = {}) {
     const buffer = buffers[bed.name]?.[0];
     if (!buffer) return;
     const length = buffer.duration;
-    const x = Math.min(o.crossfade, length / 4);
+    const x = Math.min(SOUNDS[bed.name].crossfade ?? o.crossfade, length / 4);
     if (bed.next < now) bed.next = now + 0.02;
     while (bed.next < now + o.lookahead) {
       const t = bed.next;
@@ -110,6 +116,8 @@ export function createAudio(options = {}) {
       src.connect(fade).connect(bed.gain);
       src.start(t);
       src.stop(t + length);
+      bed.copies.add(src);
+      src.onended = () => bed.copies.delete(src);
       bed.next = t + length - x;
     }
   }
@@ -208,8 +216,13 @@ export function createAudio(options = {}) {
       for (const bed of Object.values(beds)) {
         bed.value += (bed.target - bed.value) * (1 - Math.exp(-dt / Math.max(bed.seconds, 1e-3)));
         bed.gain.gain.setTargetAtTime(bed.value * bed.max, now, 0.05);
-        // A silent bed stops queueing, and starts afresh when it is wanted.
+        // A silent bed stops, and starts afresh when it is wanted.
         if (bed.target > 0 || bed.value > 1e-3) schedule(bed, now);
+        else if (bed.copies.size) {
+          for (const src of bed.copies) src.stop();
+          bed.copies.clear();
+          bed.next = 0;
+        }
       }
     },
   };
