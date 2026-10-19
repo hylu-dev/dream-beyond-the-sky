@@ -158,12 +158,13 @@
         /* a faint ink wash so it reads against the bright sky */
         content: ''; position: absolute; left: 50%; top: 50%; z-index: -1;
         width: min(560px, 100vw); height: 240%; transform: translate(-50%, -50%);
-        background: radial-gradient(closest-side, rgba(16, 10, 24, 0.32), rgba(16, 10, 24, 0.12) 60%, transparent);
+        background: radial-gradient(closest-side, rgba(16, 10, 24, 0.42), rgba(16, 10, 24, 0.18) 60%, transparent);
       }
       .area-en {
-        font: 500 clamp(11px, 1vw, 14px)/1 'Cormorant Garamond', serif;
-        letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase;
-        color: rgba(246, 239, 224, 0.92); text-shadow: 0 0 10px rgba(20, 10, 4, 0.7), 0 1px 2px rgba(0, 0, 0, 0.5);
+        font: 600 clamp(14px, 1.45vw, 20px)/1 'Cormorant Garamond', serif;
+        letter-spacing: 0.36em; padding-left: 0.36em; text-transform: uppercase;
+        color: #f6efe0;
+        text-shadow: 0 0 12px rgba(20, 10, 4, 0.85), 0 0 4px rgba(20, 10, 4, 0.7), 0 1px 2px rgba(0, 0, 0, 0.6);
       }
       .area-rule { display: flex; align-items: center; gap: 8px; width: min(220px, 56vw); opacity: 0.85; }
       .area-rule::before, .area-rule::after { content: ''; flex: 1; height: 1px; transform: scaleX(0); }

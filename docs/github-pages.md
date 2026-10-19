@@ -1,6 +1,13 @@
 # GitHub Pages hosting
 
-The game is configured for `https://hylu-dev.github.io/jst-2-demo/`.
+The game is live at https://hylu-dev.github.io/jst-2-demo/.
+
+Release `7718cea` was published to `main` from the separate release checkout
+at `/tmp/splat-pages-release-20261019`. The active development checkout was
+left on `cinematic-and-flight` with its uncommitted work preserved.
+[Deployment run](https://github.com/hylu-dev/jst-2-demo/actions/runs/39216573034)
+succeeded. Live checks returned HTTP 200 for the page and 48 asset URLs,
+confirmed both bilingual titles, and matched the favicon to the approved Dawn PNG.
 GitHub Pages is enabled with GitHub Actions and HTTPS. The user made the
 repository public, resolving the earlier private-repository plan restriction.
 The release workflow publishes the game when changes reach `main`.
