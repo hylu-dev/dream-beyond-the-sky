@@ -132,6 +132,34 @@ if (!measureOnly) {
   far.anchorCloud(index, center, 10, { opacity: 0 });
   far.update(0, flight, camera);
   assert.equal(puff.render.meshInstances[0].visible, false, 'parked shrouds stay hidden');
+
+  // Environment.setTint re-renders the whole capture's work buffer (a
+  // million splats), so a clock standing still must not tint it again.
+  const { createTimeOfDay } = await import('../src/timeOfDay.js');
+  let islandTints = 0, herTints = 0;
+  const clock = await createTimeOfDay({}, {
+    environment: { setClipDistanceOrigin() {}, setClipDistance() {}, setTint: () => islandTints++ },
+    character: { setTint: () => herTints++ },
+    captureOrigin: { x: 0, y: 0, z: 0 },
+    options: { useSkyDome: false },
+  });
+  clock.setPhase(0.6);
+  clock.setSpeed(0);
+  const held = islandTints;
+  for (let i = 0; i < 600; i++) clock.update(1 / 60);
+  assert.equal(islandTints, held, 'the menu\'s held clock leaves the island tint alone');
+  assert.equal(herTints, held, 'and hers');
+  clock.characterGlow = 0.5;
+  clock.update(1 / 60);
+  assert.equal(islandTints, held + 1, 'her glow changing applies once');
+  clock.setSpeed(1);
+  for (let i = 0; i < 60; i++) clock.update(1 / 60);
+  assert.equal(islandTints, held + 61, 'a running clock still tints every frame');
+  clock.settleAt(0.3, 0.5);
+  for (let i = 0; i < 120; i++) clock.update(1 / 60);
+  const settled = islandTints;
+  for (let i = 0; i < 120; i++) clock.update(1 / 60);
+  assert.equal(islandTints, settled, 'a settled dawn leaves it alone');
 }
 console.log(JSON.stringify(report, null, 2));
 app.destroy();

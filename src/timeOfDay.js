@@ -133,7 +133,15 @@ export async function createTimeOfDay(scene, { environment, character, captureOr
     return out.copy(rise).mulScalar(Math.cos(a)).add(new Vec3().copy(climb).mulScalar(Math.sin(a)));
   };
 
+  // What the look was last applied for. The island's tint re-renders its
+  // whole capture, so a clock standing still (the menu, a settled dawn)
+  // leaves it be.
+  let appliedPhase = NaN;
+  let appliedGlow = NaN;
+
   function apply() {
+    appliedPhase = phase;
+    appliedGlow = characterGlow;
     directionAt(phase, sunDirection);
     sunEl = Math.asin(Math.min(Math.max(sunDirection.y, -1), 1)) / deg;
     const sunAz = Math.atan2(sunDirection.x, sunDirection.z) / deg;
@@ -190,7 +198,7 @@ export async function createTimeOfDay(scene, { environment, character, captureOr
         speed = speedTau > 0 ? speed + (speedGoal - speed) * (1 - Math.exp(-dt / speedTau)) : speedGoal;
         phase = (phase + (speed * dt) / o.cycleSeconds) % 1;
       }
-      apply();
+      if (phase !== appliedPhase || characterGlow !== appliedGlow) apply();
     },
     get phase() {
       return phase;

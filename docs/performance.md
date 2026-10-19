@@ -23,14 +23,43 @@ The benchmark uses PlayCanvas's null graphics device. These are effect-specific 
 
 For a new comparison, run the same benchmark against the baseline source with `--measure-only > /tmp/splat-performance-before.json`, then run the optimized source with `--compare /tmp/splat-performance-before.json`. This asserts matching visible state and reduced work. The fixture is deterministic; use the same benchmark and dependency versions on both sides.
 
+## Environment re-renders
+
+Each realm is a 1,048,576-splat capture. `Environment.setTint` in splat-engine 0.2.0 marks that capture's work buffer dirty, so the next frame re-renders all of its splats. The game called it every frame, even when nothing had changed:
+
+- `timeOfDay.update()` re-applied the island's grade on every frame, including while the clock is stopped. The title menu holds the clock with `setSpeed(0)` and waits there indefinitely. A held or settled clock now applies nothing; a running clock (the dawn) still applies every frame. The performance check verifies this: under the old code, 10 seconds of menu caused 600 island re-tints; now there are none.
+- `updateSkyGrade()` re-tinted the sky capture every frame for the whole flight, crash and wake. It now does so only during the `SKY_GRADE` settle window, when the value changes.
+
+The output is unchanged: the tints written are the same values, just not rewritten. The sky-grade guard lives in `main.js`, which the Node checks cannot import, so only the island clock has an automated test. The GPU time saved per frame depends on the device and backend, and has not been measured in a browser yet.
+
+## Memory and loading
+
+The title screen waits for one `Promise.all` covering both realms, the character, all nine animation clips and the cliff set. Audio loads alongside it without blocking.
+
+| Fetched at startup | Download | Resident afterwards |
+| --- | ---: | --- |
+| Island realm (`.spz`) | 16.3 MiB | ~32 MiB GPU textures + 12 MiB CPU sort centers (estimated from formats) |
+| Sky realm (`.spz`) | 16.0 MiB | the same, held through the whole island sequence |
+| Animation clips (9 `.glb`) | 22.3 MiB | parsed into keyframe tracks |
+| Cliff textures and mesh | 9.5 MiB | 32 MiB GPU (four 1254² RGBA textures with mips) |
+| Character (`.vsplat`) | 1.2 MiB | small |
+| Decoded sounds (`.mp3`) | 6.2 MiB | **~132 MiB** PCM at 48 kHz (360.6 s of stereo float32) |
+| Streamed music (`.mp3`) | 4.3 MiB | browser media buffers only |
+| **Total** | **75.7 MiB** | |
+
+The decoded-sound figure is exact arithmetic from the files' durations. The splat figures follow from PlayCanvas's texture formats and still need confirming in a browser. A further 41 MiB in `public/` ships with every deploy but the game never requests it: the seven `flight/cliffs/*.glb` models (written there by `tools/build-flight-cliffs.py` and read by `verify-cliff-demo.mjs`), the retired `painted-islands-atlas.png`, and the unreferenced `flight/cliff-stone-painterly.png` and `flight/clouds/painted-clouds.png`.
+
 ## Checks
 
 ```sh
 node tools/verify-performance.mjs
 node tools/verify-flight-atmosphere.mjs
 node tools/verify-cliff-demo.mjs
+node tools/verify-cliff-avoidance.mjs
 npm run build
 ```
+
+`verify-cliff-avoidance` flies the real flight model and chase camera among the real cliff boxes for five seeds of two minutes each, with a pilot who aims at the nearest cliff. Without avoidance, three of the five runs put her inside the rock's 2.5 m hide distance (73–532 frames) and hide cliffs from the lens on 85–606 frames. With avoidance she stays at least 4.5 m off, no cliff hides from her or the lens, and the contact slide never moves her more than 0.17 m in a frame. Idle and gently wandering pilots on the same seeds are never steered or pushed.
 
 The performance check covers initial invisibility, exact-zero hiding, faint nonzero visibility, fade-in restoration, and shrouds moved while hidden or parked. The atmosphere check also verifies birds-only startup avoids the atlas, alongside the existing sustained-flight, geometry, buffer reuse and scenery checks. The cliff check exercises anchored clouds and both shader source paths.
 

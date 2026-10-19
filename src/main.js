@@ -1341,7 +1341,7 @@ function swapToSky() {
   skyGrade.intensity = timeOfDay.grade.intensity;
   skyGrade.color = timeOfDay.grade.color;
   skyGrade.time = 0;
-  skyGrade.clouds = -1;
+  skyGrade.clouds = skyGrade.settle = -1;
   timeOfDay.disable();
   updateSkyGrade(0);
   celestial.enabled = false;
@@ -1376,7 +1376,7 @@ function startFlyDirect() {
   setState('fly');
 }
 
-const skyGrade = { intensity: 0, color: null, time: 0, clouds: -1 };
+const skyGrade = { intensity: 0, color: null, time: 0, clouds: -1, settle: -1 };
 function updateSkyGrade(dt) {
   const g = SKY_GRADE;
   skyGrade.time += dt;
@@ -1388,6 +1388,9 @@ function updateSkyGrade(dt) {
     const mix = (a, b) => a.map((v, i) => v + (b[i] - v) * settled);
     for (const clouds of [windFx, skyClouds]) clouds.setColors(mix(warm.base, cool.base), mix(warm.top, cool.top));
   }
+  // Only while it settles: the sky's tint re-renders its whole capture.
+  if (skyGrade.settle === k) return;
+  skyGrade.settle = k;
   sky.setTint(skyGrade.intensity * g.share * k, skyGrade.color);
   character.setTint(skyGrade.intensity * g.herShare * k, skyGrade.color);
 }
@@ -1499,6 +1502,7 @@ function showAreaTitle() {
   areaEl.classList.add('play');
 }
 
+const flyInput = { turn: 0, climb: 0 };
 function updateFlight(dt) {
   if (stateTime >= CRASH_AFTER || crashNow) {
     crashNow = false;
@@ -1513,7 +1517,12 @@ function updateFlight(dt) {
   const shaky = 1 - smooth(0, LAUNCH.confidenceSeconds, confidence);
   flight.state.flail = flailAtFly * shaky;
   if (flailClip > 0) setFlailClip(flailClipAtFly * shaky);
-  flight.update(dt, { turn, climb });
+  // A cliff on her line takes her steering and turns her round it.
+  const dodge = flightCliffs.dodge(flight);
+  flyInput.turn = dodge.turn === null ? turn : turn + (dodge.turn - turn) * dodge.weight;
+  flyInput.climb = dodge.climb === null ? climb : climb + (dodge.climb - climb) * dodge.weight;
+  flight.update(dt, flyInput);
+  flightCliffs.keepOff(flight, dt);
   placeFlyer();
   flightRig.update(dt, flight);
   chaseCamera.update(dt, flight);

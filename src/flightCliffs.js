@@ -25,7 +25,12 @@ export const CLIFF_DEFAULTS = {
   underShare: 0.12,
   yawJitterDeg: 10,
   haze: [0.05, 0.55], // at the near edge of the haze, and added by `ahead`
-  clear: 2.5, // metres: closer than this to the rock it hides, not the lens
+  clear: 2.5, // metres: closer than this to the lens, the rock hides
+  // She is never let into a cliff: one coming up on her line within
+  // `seconds` takes over her steering (dodge()), round whichever way she
+  // clears soonest at about `across` and `climb` m/s, to `margin` metres
+  // off it; and closer than `contact` she slides off it (keepOff()).
+  avoid: { seconds: 4.5, margin: 5.5, contact: 4.5, across: 3.5, climb: 4.5, slide: 10 },
   // Past stopAt()'s mark a cliff is put away rather than put up: once it is
   // this far off, deep in the haze, where its going is not seen.
   parkBeyond: 260,
@@ -66,6 +71,7 @@ export function createFlightCliffs(scene, assets, options = {}) {
   let open = null; // [from, to] along her line kept clear of cliffs, or null
   let limit = Infinity; // along her line, no cliff stands past this
   let cursor = 0, side = 1, recycled = 0, hidden = 0, nearest = Infinity, hiddenFrames = 0, passes = 0;
+  let dodgeFrames = 0, contactFrames = 0;
 
   // Out of the way for good, its cloud bank with it.
   function park(c, s) {
@@ -88,6 +94,7 @@ export function createFlightCliffs(scene, assets, options = {}) {
     c.top = random(kind.top);
     c.along = along;
     c.passed = false;
+    c.way = null;
     if (kind === o.under) {
       if (lastUnder && lastUnder !== c) {
         c.along = Math.max(along, lastUnder.along + (lastUnder.reach * lastUnder.scale + c.reach * c.scale) + 4);
@@ -137,13 +144,49 @@ export function createFlightCliffs(scene, assets, options = {}) {
     return Math.sqrt(sq) * c.scale;
   }
 
+  // Its box as she sees it from her line, however it is turned: `a` along
+  // her line, `l` across it (+ to her left), `y` up; grown by `grow` metres
+  // across and up.
+  const box = { a0: 0, a1: 0, l0: 0, l1: 0, y0: 0, y1: 0 };
+  function laneBox(c, s, grow) {
+    const at = c.entity.getPosition();
+    const r = (c.yaw * Math.PI) / 180, cos = Math.cos(r), sin = Math.sin(r);
+    box.a0 = box.l0 = Infinity;
+    box.a1 = box.l1 = -Infinity;
+    for (let k = 0; k < 4; k++) {
+      const lx = (k & 1 ? c.max[0] : c.min[0]) * c.scale, lz = (k & 2 ? c.max[2] : c.min[2]) * c.scale;
+      const x = at.x + lx * cos + lz * sin, z = at.z + lz * cos - lx * sin;
+      const a = x * s.forward.x + z * s.forward.z, l = x * s.left.x + z * s.left.z;
+      box.a0 = Math.min(box.a0, a); box.a1 = Math.max(box.a1, a);
+      box.l0 = Math.min(box.l0, l - grow); box.l1 = Math.max(box.l1, l + grow);
+    }
+    box.y0 = at.y + c.min[1] * c.scale - grow;
+    box.y1 = at.y + c.max[1] * c.scale + grow;
+    return box;
+  }
+
+  // Which way round she goes: across (axis 'l') or over or under ('y'),
+  // `dir` +1 to her left or up, and how far she has to move.
+  function wayRound(flight, b, L, Y) {
+    const s = flight.state, a = o.avoid, [low, high] = flight.options.climbRange;
+    const ways = [
+      { axis: 'l', dir: 1, need: b.l1 - L, rate: a.across },
+      { axis: 'l', dir: -1, need: L - b.l0, rate: a.across },
+    ];
+    if (b.y1 < s.baseAltitude + high) ways.push({ axis: 'y', dir: 1, need: b.y1 - Y, rate: a.climb });
+    if (b.y0 > s.baseAltitude + low) ways.push({ axis: 'y', dir: -1, need: Y - b.y0, rate: a.climb });
+    return ways.reduce((best, w) => (w.need / w.rate < best.need / best.rate ? w : best));
+  }
+
+  const dodgeInput = { turn: 0, climb: 0, weight: 0 };
+
   return {
     reset(flight) {
       const s = flight.state;
       root.enabled = true;
       ref.lateral = s.pos.dot(s.left);
       ref.height = s.pos.y;
-      recycled = hiddenFrames = passes = 0;
+      recycled = hiddenFrames = passes = dodgeFrames = contactFrames = 0;
       lastUnder = null;
       open = null;
       limit = Infinity;
@@ -186,8 +229,9 @@ export function createFlightCliffs(scene, assets, options = {}) {
         const d = c.entity.getPosition().distance(cam);
         const haze = o.haze[0] + smooth(25, o.ahead, d) * o.haze[1];
         for (const instance of c.instances) instance.setParameter('cliff_haze', haze);
-        // The rock is opaque and can't fade: if she or the lens would go
-        // into it, it gives way to its cloud bank instead.
+        // The rock is opaque and can't fade: if the lens would go into it,
+        // it gives way to its cloud bank instead. She is kept off it
+        // (keepOff()), so it is only ever the lens.
         const g = Math.min(gap(c, cam), gap(c, s.pos));
         nearest = Math.min(nearest, g);
         c.entity.enabled = g > o.clear;
@@ -204,6 +248,65 @@ export function createFlightCliffs(scene, assets, options = {}) {
         }
       }
       if (hidden) hiddenFrames++;
+    },
+    // Steering that takes her round the most pressing cliff on her line:
+    // `turn` and `climb` like the player's (null where it leaves her be),
+    // and `weight`, 0..1, how much of her steering it takes over - all of
+    // it well before she would reach the rock.
+    dodge(flight) {
+      dodgeInput.turn = dodgeInput.climb = null;
+      dodgeInput.weight = 0;
+      if (!root.enabled) return dodgeInput;
+      const s = flight.state, a = o.avoid;
+      const A = s.pos.dot(s.forward), L = s.pos.dot(s.left), Y = s.pos.y;
+      const reach = Math.max(s.speed, 1) * a.seconds;
+      for (const c of cliffs) {
+        if (c.parked) continue;
+        const b = laneBox(c, s, a.margin);
+        const ahead = b.a0 - A;
+        if (A > b.a1 || ahead > reach || L <= b.l0 || L >= b.l1 || Y <= b.y0 || Y >= b.y1) continue;
+        const way = (c.way ??= wayRound(flight, b, L, Y));
+        const weight = smooth(reach, reach * 0.4, ahead);
+        if (weight <= dodgeInput.weight) continue;
+        const need = way.axis === 'l' ? (way.dir > 0 ? b.l1 - L : L - b.l0) : way.dir > 0 ? b.y1 - Y : Y - b.y0;
+        const push = way.dir * Math.min(0.4 + need / 6, 1);
+        dodgeInput.weight = weight;
+        dodgeInput.turn = way.axis === 'l' ? push : null;
+        dodgeInput.climb = way.axis === 'y' ? push : null;
+      }
+      if (dodgeInput.weight > 0) dodgeFrames++;
+      return dodgeInput;
+    },
+    // After the flight's step: closer than `contact` to a cliff, she slides
+    // off it across or up, whichever face she is nearest, at up to `slide`
+    // m/s - at once if she is closer even than `clear`.
+    keepOff(flight, dt) {
+      if (!root.enabled) return;
+      const s = flight.state, a = o.avoid;
+      let touched = false;
+      for (const c of cliffs) {
+        if (c.parked) continue;
+        const near = gap(c, s.pos);
+        if (near >= a.contact) continue;
+        const b = laneBox(c, s, a.contact);
+        const L = s.pos.dot(s.left), Y = s.pos.y;
+        const outs = [b.l1 - L, b.l0 - L, b.y1 - Y, b.y0 - Y];
+        let k = 0;
+        for (let i = 1; i < 4; i++) if (Math.abs(outs[i]) < Math.abs(outs[k])) k = i;
+        const step = near < o.clear ? Infinity : a.slide * dt;
+        const out = Math.sign(outs[k]) * Math.min(Math.abs(outs[k]), step);
+        if (k < 2) {
+          s.pos.x += s.left.x * out;
+          s.pos.z += s.left.z * out;
+          if (s.lateralVel * out < 0) s.lateralVel = 0;
+        } else {
+          s.pos.y += out;
+          s.altitude += out;
+          if (s.climbVel * out < 0) s.climbVel = 0;
+        }
+        touched = true;
+      }
+      if (touched) contactFrames++;
     },
     // Keeps her line from `from` to `to` metres ahead clear of cliffs: any
     // standing there now move on past it, and none are put up in it.
@@ -226,7 +329,7 @@ export function createFlightCliffs(scene, assets, options = {}) {
     set enabled(v) { root.enabled = v; },
     stats() {
       return {
-        cliffs: cliffs.length, recycled, hidden, hiddenFrames, nearestGap: nearest, passes,
+        cliffs: cliffs.length, recycled, hidden, hiddenFrames, nearestGap: nearest, passes, dodgeFrames, contactFrames,
         parked: cliffs.filter(c => c.parked).length, limit,
         settled: cliffs.filter(c => c.settled).length,
       };
