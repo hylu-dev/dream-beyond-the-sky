@@ -1,10 +1,10 @@
 import { assetUrl } from './assetUrl.js';
+import { loadAnimation } from './loadAnimation.js';
 import { LAYERID_WORLD, Vec3 } from 'playcanvas';
 import {
   Scene,
   Environment,
   Character,
-  Animation,
   LOWER_BODY_BONE_NAMES,
   UPPER_BODY_BONE_NAMES,
   resolveBoneIndices,
@@ -19,6 +19,7 @@ import { createFlightRig } from './flightRig.js';
 import { createSeatPose } from './seatPose.js';
 import { createChaseCamera } from './chaseCamera.js';
 import { createLaunchShot } from './launchShot.js';
+import { createEdgeShot } from './edgeShot.js';
 import { createWindFx } from './windFx.js';
 import { createFlightScenery } from './flightScenery.js';
 import { loadCliffAssets } from './cliffAssets.js';
@@ -56,8 +57,8 @@ const SKY_SCALE = 30;
 // looked up, the camera comes in beside her face and turns away from it,
 // rising over her head to see what she sees: the night gives way to one dawn, the sun climbing into
 // golden hour, and at its height the world swims in a pulse of light. Then
-// the camera backs slowly straight out and finds her standing at the edge,
-// her back to us; it waits there, rumbling, and she jumps (vanish.glb, PINOC
+// the camera backs away, still watching the sun, and she rises into frame
+// as she walks to the sunlit edge; it waits, and she jumps (vanish.glb, PINOC
 // "Leap Off Cliff").
 const SEAT = {
   x: -1.2,
@@ -117,8 +118,7 @@ const PORTRAIT = {
 // head - to just over her and in front, looking out where she looks, with
 // her below the frame. Behind the move the look turns away from her face,
 // right, toward what she sees, in one sweep. The golden sun sits
-// on the middle of the frame, a little over centre, above the realm (any
-// higher a look and the back-out could not take in her feet at the edge).
+// on the middle of the frame, a little over centre, above the realm.
 // It holds there for the dawn.
 const VIEW = {
   beside: { x: -1.51, y: 3.2, z: -4.03 }, // the arc bends toward here, by her face
@@ -141,18 +141,12 @@ const VIEW = {
 // flash of it she takes her place on the brow, sitting as she sat (RISE).
 const PULSE = { seconds: 2.6, triggerBelow: 0.6 }; // degrees short of golden hour
 
-// Then the camera backs out along its look, sinking a little and opening
-// out as it goes, its look settling a few degrees lower, until she is
-// revealed getting up on the brow; it stops there and waits with a slow
-// rumble building while she walks to the edge, and she goes. The tree's
-// canopy frames the top left of the shot.
+// Back away and descend in one arc while still looking toward the sun.
+// She is already rising as she comes into view. The approved low ledge
+// frame is the endpoint; there is no turn toward her or stop on a side view.
 const BACK_OUT = {
   after: 0.9, // seconds after the pulse peaks
-  metres: 1.8,
-  drop: 0.45, // metres lower at the end
-  seconds: 5.5,
-  fov: 62,
-  pitchDeg: 6,
+  seconds: 7.2,
 };
 
 // The edge: a lip at the north-east of the brow over a drop of nearly two
@@ -165,31 +159,17 @@ const BRINK = {
   y: 1.47, // the lip under her feet
   z: -4.6,
   headingDeg: 83,
-  waitSeconds: 3.2, // at least, after the camera stops, rumbling
+  waitSeconds: 3.2, // at least, after the camera reaches the low ledge frame
   rumble: { metres: 0.012, rollDeg: 0.35, hz: 7, buildSeconds: 2.4 },
 };
 
-// How she gets there: getup.glb (PINOC "Sit to Stand Turn Walk") has her
-// sit, lean forward and push up off her knees, then walk, bearing right, to
-// a stop. The engine keeps clips in place, so she is carried along the
-// clip's own travel (getup.path.json), laid out backwards from the lip so
-// that it ends there: she sets off `headingDeg`, and over the last steps,
-// from `turnFrom` seconds into the clip, she eases round to stop facing as
-// vanish.glb begins - whose first frame faces `vanishTurnDeg` left of the
-// clip's last, both measured offline. That puts where she sits on the flat
-// of the brow, just in the back-out's frame once it is half way out. She
-// sits there unseen for `delay` seconds after the flash, so the camera finds
-// her rising. `ground` is the brow under her feet, [clip seconds, metres],
-// measured offline from the capture; her last step comes down onto the lip.
-// At the stop she settles into vanish.glb over `settleSeconds`, and stands
-// `standSeconds` before she goes.
+// One generated rise/walk/stop, with its final facing aligned offline to the
+// drop pose. Carry its matching root travel at a constant heading so planted
+// feet never swivel during the transition. The rise begins under the flash.
 const RISE = {
-  delay: 1.5,
-  headingDeg: 129.9,
-  turnFrom: 6.4,
-  vanishTurnDeg: 74.9,
-  ground: [[0, 1.97], [4, 1.95], [5, 2], [6, 1.86], [6.9, 1.76], [7.4, 1.47]],
-  settleSeconds: 0.6,
+  delay: 0,
+  ground: [[0, 1.97], [2.1, 1.97], [7.5, 1.47]],
+  settleSeconds: 0.8,
   standSeconds: 1,
 };
 
@@ -427,20 +407,20 @@ const [sanctuary, sky, character, cliffAssets] = await Promise.all([
   }),
   Character.load(scene, assetUrl('martial-artist.vsplat')),
   loadCliffAssets(scene),
-  Animation.loadGlb(scene, assetUrl('anims/idle.glb'), 'idle'),
-  Animation.loadGlb(scene, assetUrl('anims/doze.glb'), 'doze'),
-  Animation.loadGlb(scene, assetUrl('anims/wake.glb'), 'wake'),
-  Animation.loadGlb(scene, assetUrl('anims/getup.glb'), 'getup'),
-  Animation.loadGlb(scene, assetUrl('anims/vanish.glb'), 'vanish'),
-  Animation.loadGlb(scene, assetUrl('anims/flail.glb'), 'flail'),
-  Animation.loadGlb(scene, assetUrl('anims/impact.glb'), 'impact'),
-  Animation.loadGlb(scene, assetUrl('anims/limpfall.glb'), 'limpfall'),
-  Animation.loadGlb(scene, assetUrl('anims/breathe.glb'), 'breathe'),
-  Animation.loadGlb(scene, assetUrl('anims/sigh.glb'), 'sigh'),
+  loadAnimation(scene, assetUrl('anims/idle.glb'), 'idle'),
+  loadAnimation(scene, assetUrl('anims/doze.glb'), 'doze'),
+  loadAnimation(scene, assetUrl('anims/wake.glb'), 'wake'),
+  loadAnimation(scene, assetUrl('anims/getup-sunrise.glb'), 'getup'),
+  loadAnimation(scene, assetUrl('anims/vanish.glb'), 'vanish'),
+  loadAnimation(scene, assetUrl('anims/flail.glb'), 'flail'),
+  loadAnimation(scene, assetUrl('anims/impact.glb'), 'impact'),
+  loadAnimation(scene, assetUrl('anims/limpfall.glb'), 'limpfall'),
+  loadAnimation(scene, assetUrl('anims/breathe.glb'), 'breathe'),
+  loadAnimation(scene, assetUrl('anims/sigh.glb'), 'sigh'),
 ]);
 sky.entity.enabled = false;
 const [vanishPath, risePath] = await Promise.all(
-  ['vanish', 'getup'].map(async (name) => (await fetch(assetUrl(`anims/${name}.path.json`))).json()),
+  ['vanish', 'getup-sunrise'].map(async (name) => (await fetch(assetUrl(`anims/${name}.path.json`))).json()),
 );
 
 const timeOfDay = await createTimeOfDay(scene, {
@@ -890,13 +870,7 @@ const goldenPhase = timeOfDay.phaseAtElevation(SKY.goldenElevation);
 const goldenSun = timeOfDay.sunDirectionAt(goldenPhase);
 const viewYaw = Math.atan2(goldenSun.x, goldenSun.z) / DEG + VIEW.sunYawDeg;
 const viewPos = new Vec3(VIEW.position.x, VIEW.position.y, VIEW.position.z);
-const viewDir = new Vec3(
-  Math.sin(viewYaw * DEG) * Math.cos(VIEW.pitchDeg * DEG),
-  Math.sin(VIEW.pitchDeg * DEG),
-  Math.cos(viewYaw * DEG) * Math.cos(VIEW.pitchDeg * DEG),
-);
-const backPos = new Vec3().copy(viewDir).mulScalar(-BACK_OUT.metres).add(viewPos);
-backPos.y -= BACK_OUT.drop;
+const edgeShot = createEdgeShot();
 const besidePos = new Vec3(VIEW.beside.x, VIEW.beside.y, VIEW.beside.z);
 let moved = false; // whether she has gone from the tree to the edge
 // Her hands lifted clear of her trousers while she sits under the tree,
@@ -1005,13 +979,12 @@ function updatePulse(dt) {
 }
 const screenTmp = new Vec3();
 
-// Her walk to the lip (RISE): where getup.glb has carried her by each of
+// Her walk to the lip (RISE): where getup-sunrise.glb has carried her by each of
 // its frames, at the headings she walks it at, so that its last frame is on
 // the lip.
 const riseFrames = risePath.x.length - 1;
 const riseSeconds = riseFrames * risePath.dt;
-const riseHeading = (t) =>
-  RISE.headingDeg + (BRINK.headingDeg + RISE.vanishTurnDeg - RISE.headingDeg) * smooth(RISE.turnFrom, riseSeconds, t);
+const riseHeading = () => BRINK.headingDeg;
 const riseTrack = { x: new Float32Array(riseFrames + 1), z: new Float32Array(riseFrames + 1) };
 for (let k = 1; k <= riseFrames; k++) {
   const dx = risePath.x[k] - risePath.x[k - 1], dz = risePath.z[k] - risePath.z[k - 1];
@@ -1034,14 +1007,14 @@ function risePosition(t, out) {
   );
 }
 
-// `time`: seconds into getup.glb, counting up from -RISE.delay while she
+// `time`: seconds into getup-sunrise.glb, counting up from -RISE.delay while she
 // waits; `settle`: seconds since she stopped on the lip, or -1.
 const rise = { active: false, time: 0, settle: -1 };
 
 function moveToRise() {
-  // Sitting, as under the tree: getup.glb held on its first frame.
+  // Start under the flash; an optional delay holds the clip's first frame.
   character.playAnimation('getup', { loop: false });
-  character.playbackSpeed = 0;
+  character.playbackSpeed = RISE.delay > 0 ? 0 : 1;
   Object.assign(rise, { active: true, time: -RISE.delay, settle: -1 });
   risePosition(0, pos);
   headingDeg = riseHeading(0);
@@ -1058,10 +1031,8 @@ function updateRise(dt) {
     }
     risePosition(rise.time, pos);
     headingDeg = riseHeading(rise.time);
-    if (rise.time >= riseSeconds) {
-      // Stopped on the lip, she settles into vanish.glb's first frame and
-      // holds it there. The blend turns her body by vanishTurnDeg, so the
-      // heading turns back by as much with it, and she does not turn at all.
+    if (rise.time >= riseSeconds - 1 / 60) {
+      // Both clips now face the same way; blend the pose with a fixed heading.
       character.crossfadeTo('vanish', { duration: RISE.settleSeconds, loop: false });
       character.playbackSpeed = 0;
       rise.settle = 0;
@@ -1070,26 +1041,26 @@ function updateRise(dt) {
   }
   rise.settle += dt;
   pos.copy(brink);
-  headingDeg = BRINK.headingDeg + RISE.vanishTurnDeg * (1 - character.armature.crossfadeProgress);
+  headingDeg = BRINK.headingDeg;
 }
 // Settled on the lip, and still there long enough to go.
 const readyToGo = () => !rise.active || rise.settle >= RISE.settleSeconds + RISE.standSeconds;
 
-// Straight back along the look, opening out: she comes into view.
+// The lens keeps the vista's bearing as the dolly reveals her below it.
 function updateBackOut(dt) {
   const t = Math.min(stateTime / BACK_OUT.seconds, 1);
-  const u = smoother(t);
-  camPos.lerp(moveFrom.pos, backPos, u);
-  lookAlong(viewYaw, VIEW.pitchDeg + (BACK_OUT.pitchDeg - VIEW.pitchDeg) * u);
-  camFov = VIEW.fov + (BACK_OUT.fov - VIEW.fov) * u;
+  const shot = edgeShot.frame(moveFrom, t);
+  camPos.copy(shot.position);
+  look.copy(shot.target);
+  camFov = shot.fov;
   applyCamera(dt, VIEW.sway);
   if (t >= 1) {
     setState('brink');
   }
 }
 
-// From the moment the camera stops, it holds where it is, looking the same
-// way; it stops dead as she goes, nodding with the stop.
+// Hold the low ledge composition through her last steps and the drop.
+// Both position and bearing stay fixed; the camera does not chase her.
 let stopTime = -1; // seconds since it stopped, or -1
 function updateHoldCamera(dt, { sway = 1 } = {}) {
   let nod = 0;
@@ -1097,8 +1068,9 @@ function updateHoldCamera(dt, { sway = 1 } = {}) {
     stopTime += dt;
     nod = STOP.nodDeg * Math.exp(-STOP.decay * stopTime) * Math.sin(2 * Math.PI * STOP.hz * stopTime);
   }
-  camPos.copy(backPos);
-  lookAlong(viewYaw, BACK_OUT.pitchDeg);
+  camPos.copy(edgeShot.pose.position);
+  look.copy(edgeShot.pose.target);
+  camFov = edgeShot.pose.fov;
   applyCamera(dt, HOLD_SWAY, sway, nod);
 }
 
@@ -1156,7 +1128,11 @@ function updateAir(dt) {
   const gusty = wind * (1 + WIND.gust * fbm1(airTime * 0.45, 71));
   const el = timeOfDay.sunElevation;
   const camera = scene.cameraEntity;
-  celestial.update(dt, camera);
+  // A sustained warm glare beyond her silhouette, held through the drop.
+  const edgeLight = state === 'backout' ? smooth(0, BACK_OUT.seconds, stateTime)
+    : ['brink', 'vanish', 'drop', 'hold'].includes(state) ? 1
+    : state === 'launch' ? 1 - smooth(0, 1.5, stateTime) : 0;
+  celestial.update(dt, camera, { sunRadiance: 1 + 0.65 * edgeLight });
   // Back under the tree after the fall, they come out with the night.
   const woken = ['woken', 'wokenWide', 'wokenEnd', 'homeward'].includes(state);
   const early = ['menu', 'approach', 'portrait'].includes(state) || woken;
@@ -1984,6 +1960,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
     face: () => facePoint(new Vec3()),
     seat,
     state: () => state,
+    opening: () => ({ stateTime, riseTime: rise.time, riseSettled: rise.settle, position: pos.clone(), headingDeg }),
     camera: scene.cameraEntity,
     app: scene.app,
     start: () => state === 'menu' && startAwakening(),

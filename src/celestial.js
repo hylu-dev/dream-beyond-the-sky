@@ -80,7 +80,7 @@ export function createCelestial(scene, timeOfDay, options = {}) {
       root.enabled = v;
     },
     // `visibility` scales everything, e.g. to keep them off a shot.
-    update(dt, camera, { visibility = 1 } = {}) {
+    update(dt, camera, { visibility = 1, sunRadiance = 1 } = {}) {
       if (!enabled) return;
       time += dt;
       camPos.copy(camera.getPosition());
@@ -97,8 +97,8 @@ export function createCelestial(scene, timeOfDay, options = {}) {
       setTint(sunHalo, [1, 0.62 + 0.25 * (1 - low), 0.32 + 0.4 * (1 - low)]);
       setTint(sunGlow, [1, 0.72 + 0.2 * (1 - low), 0.45 + 0.4 * (1 - low)]);
       setTint(sunCore, [1, 0.93, 0.8 + 0.18 * (1 - low)]);
-      setOpacity(sunHalo, 0.22 * sunUp);
-      setOpacity(sunGlow, 0.55 * sunUp);
+      setOpacity(sunHalo, 0.22 * sunUp * sunRadiance);
+      setOpacity(sunGlow, 0.55 * sunUp * sunRadiance);
       setOpacity(sunCore, 0.95 * sunUp);
 
       // The moon, opposite; it pales out in daylight.
