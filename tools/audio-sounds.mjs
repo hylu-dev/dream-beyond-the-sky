@@ -305,10 +305,10 @@ export const SOUNDS = [
     name: 'music-dawn', music: true, file: 'music/the-great-reveal.mp3', seconds: 35, fade: 0.25, lufs: -18,
   },
   {
-    // Approved review take 03J. Copy the mastered audition unchanged: its
-    // -30 LUFS level, treble shelf and 5 s / 2.5 s fades are already baked in.
-    name: 'music-ledge', music: true, file: 'drop-review/audio/03J-solo.mp3',
-    prepared: true, seconds: 9, lufs: -30,
+    // Seven-second in-game edit of 03J (tools/build-ledge-cue.mjs).
+    // Original mix gain, treble shelf and 5 s / 2.5 s fades are baked in.
+    name: 'music-ledge', music: true, file: 'drop-review/audio/03J-game.mp3',
+    prepared: true, seconds: 7, lufs: -30,
   },
   {
     // The flight (Suno's 风过长空), from its start as she bursts up: its quiet

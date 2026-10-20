@@ -60,4 +60,6 @@ These auditions target -30 LUFS, 6 dB below the earlier -24 LUFS versions in bot
 
 ## Selected and applied: 03J
 
-The user selected 03J. Its solo master is copied byte-for-byte to `public/assets/audio/music-ledge.mp3`, and the main audio processing manifest preserves it as a prepared master. In the game it starts at foot release with gain 0.8; dawn fades linearly over five seconds. Launch waits until nine seconds of strings and the 0.65-second musical pause finish. The longer camera hold retains the existing slow dolly and ambience. The review page marks 03J as selected; choosing or favoriting another card still does not change the game automatically.
+The user selected 03J. The game uses a seven-second edit rebuilt from the raw performance by `node tools/build-ledge-cue.mjs`. It retains the original audition's gain, pitch, treble shelf, five-second entrance and 2.5-second release. Its prepared master is `audio/03J-game.mp3`, copied unchanged to `public/assets/audio/music-ledge.mp3` by the builder and the audio processing manifest.
+
+In the game the cue starts half a second before foot release with gain 0.8; dawn fades over five seconds. Launch follows the seven-second cue and 0.8 seconds of wind and birds, 1.5 seconds sooner than the timing before the cue was shortened. The archived nine-second auditions retain their original timing. The review page marks 03J as selected; favoriting another card does not change the game automatically.

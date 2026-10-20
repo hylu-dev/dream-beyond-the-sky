@@ -35,13 +35,14 @@ Opening cues measured in browser playback, approximately from Start (frame sched
 | 17.8 s | Camera backs out to reveal her standing and walking |
 | 25.0 s | Camera reaches the brink composition |
 | 28.2 s | Step-off begins |
-| 29.0 s | Feet release; 03J strings begin and dawn starts its five-second fade |
+| 28.5 s | 03J strings begin and dawn starts its five-second fade |
+| 29.0 s | Feet release |
 | 29.8 s | Empty ledge hold and slow dolly; the strings continue |
-| 34.0 s | Dawn finishes fading; soft D5 strings remain |
-| 35.5 s | Strings begin their 2.5-second release |
-| 38.0 s | Strings end; wind and birds carry a 0.65-second musical pause |
-| 38.65 s | Launch: flight music starts |
-| about 43.8 s | Free flight |
+| 33.0 s | Strings begin their 2.5-second release |
+| 33.5 s | Dawn finishes fading; soft D5 strings remain |
+| 35.5 s | Strings end; wind and birds carry a 0.8-second musical pause |
+| 36.3 s | Launch: flight music starts |
+| about 41.4 s | Free flight |
 
 The flight track's burst remains at track time 7.165 s, 0.8 s after the area's title starts. The storm remains at flight track time 64 s.
 
@@ -82,7 +83,7 @@ Lyrics (structure):
 [End]
 ```
 
-In the game: `The Great Reveal` (a 3.5 min piece, in `art/audio/music/`) plays from its own start on the Start press. Its first swell peaks 15.0-15.7 s in, and the gong lands 15.56 s after Start, so it needs no cut there. `tools/process-audio.mjs` keeps 35 s, preserving the closing phrase throughout the transition. `main.js` starts a five-second linear fade at foot release while the selected 03J strings enter.
+In the game: `The Great Reveal` (a 3.5 min piece, in `art/audio/music/`) plays from its own start on the Start press. Its first swell peaks 15.0-15.7 s in, and the gong lands 15.56 s after Start, so it needs no cut there. `tools/process-audio.mjs` keeps 35 s, preserving the closing phrase throughout the transition. `main.js` starts a five-second linear fade half a second before foot release while the selected 03J strings enter.
 
 For a new take: cut it so the climax lands at 15 s from Start, on the gong. Leave its very low end thin there, with no gong or deep hit of its own: the game's gong is already the deepest thing in the game.
 
@@ -90,9 +91,9 @@ For a new take: cut it so the climax lands at 15 s from Start, on the gong. Leav
 
 Title: `Waking Above the Clouds - Flight`
 
-The dawn score continues through the brink and step. Its recorded A4 phrase blends over five seconds into 03J’s D5 suspension as she leaves the ledge. The nine-second string cue fades away over its last 2.5 seconds, leaving a 0.65-second beat of wind and distant birds. On the launch, `风过长空` (in `art/audio/music/`) starts from its beginning as `music-flight`: its quiet intro, a breath, and its burst (its first sound at 7.165 s). The burst comes 0.8 s after the area's title starts, as it shows (`FLIGHT_MUSIC` in `main.js`). It runs 76 s, which covers the 64 s from the launch to the storm and its 5 s fade. The storm comes in at 1:04.0 of it, where its C major phrase has ended and it turns dark (G, then B), so the music isn't cut off mid-phrase (`CRASH_AFTER` in `main.js`). The storm eases it out over 5 s, under `music-storm`'s rise. Skipping to the flight starts it partway in, so the burst still comes with the title.
+The dawn score continues through the brink and step. Its recorded A4 phrase blends over five seconds into 03J’s D5 suspension as she leaves the ledge. The seven-second string cue fades away over its last 2.5 seconds, leaving a 0.8-second beat of wind and distant birds. On the launch, `风过长空` (in `art/audio/music/`) starts from its beginning as `music-flight`: its quiet intro, a breath, and its burst (its first sound at 7.165 s). The burst comes 0.8 s after the area's title starts, as it shows (`FLIGHT_MUSIC` in `main.js`). It runs 76 s, which covers the 64 s from the launch to the storm and its 5 s fade. The storm comes in at 1:04.0 of it, where its C major phrase has ended and it turns dark (G, then B), so the music isn't cut off mid-phrase (`CRASH_AFTER` in `main.js`). The storm eases it out over 5 s, under `music-storm`'s rise. Skipping to the flight starts it partway in, so the burst still comes with the title.
 
-Only the flight's music comes from this piece. The separate 03J string cue carries the fall after dawn fades; its completed release leaves 0.65 s of musical silence before launch.
+Only the flight's music comes from this piece. The separate 03J string cue carries the fall after dawn fades; its completed release leaves 0.8 s of musical silence before launch.
 
 The playback mix lifts the flight recording's quiet opening by about 6 dB through track time 10.5 s, then smoothly returns to its normal level at 12 s (`introLift` in `src/audio.js`). This brings the opening forward without shifting the track, its 7.165 s burst, the title cue, or the storm. Skipped playback joins the envelope at the corresponding track time; cut and stop fades remain independent.
 
@@ -174,6 +175,6 @@ The first 28 s or so is the ending: she pants for breath at first (her breathing
 
 ### Dawn's closing phrase and brief silence
 
-The user selected **03J — Soft legato section** from `art/audio/drop-review/`. This fresh ElevenLabs Music v2 performance was generated at D5 using an audio reference, with no local pitch correction, stretching or looping. The exact nine-second audition master ships as `music-ledge.mp3`: -30 LUFS, a gentle -3 dB treble shelf at 3.2 kHz, a five-second entrance and a 2.5-second release. Playback gain is 0.8, matching the review mix. `tools/audio-sounds.mjs` marks the asset as prepared so rebuilding audio copies the approved master unchanged.
+The user selected **03J — Soft legato section** from `art/audio/drop-review/`. This fresh ElevenLabs Music v2 performance was generated at D5 using an audio reference, with no local pitch correction, stretching or looping. A seven-second edit ships as `music-ledge.mp3`, rebuilt from the raw performance by `tools/build-ledge-cue.mjs` at the original nine-second audition’s gain. It retains a gentle -3 dB treble shelf at 3.2 kHz, a five-second entrance and a 2.5-second release. Playback gain is 0.8, matching the review mix. `tools/audio-sounds.mjs` marks the asset as prepared so rebuilding audio copies the prepared seven-second master unchanged.
 
-At supporting-foot release, dawn's existing A4 phrase fades linearly over five seconds while 03J enters. The audio clock then allows all nine seconds of the cue plus 0.65 seconds of musical silence before launch. Dawn keeps 35 seconds of its source so its file ending cannot truncate the crossfade. Wind and birds remain underneath. The longer empty-ledge hold retains the slow 0.08 m/s dolly and sway; flight-relative title and storm timing remain unchanged. Hold-to-skip cuts both dawn and strings.
+Half a second before supporting-foot release, dawn's existing A4 phrase fades linearly over five seconds while 03J enters. The audio clock then allows all seven seconds of the cue plus 0.8 seconds of musical silence before launch. Dawn keeps 35 seconds of its source so its file ending cannot truncate the crossfade. Wind and birds remain underneath. The longer empty-ledge hold retains the slow 0.08 m/s dolly and sway; flight-relative title and storm timing remain unchanged. Hold-to-skip cuts both dawn and strings.

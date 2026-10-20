@@ -40,7 +40,7 @@ export const SOUNDS = {
   // blow.
   'music-night': { stream: true, loop: true, gain: 0.55, crossfade: 6 },
   'music-dawn': { gain: 0.8 },
-  // Approved 03J: nine seconds at -30 LUFS, with its entrance/release baked in.
+  // Approved 03J: seven-second edit at the original mix gain, with baked-in fades.
   'music-ledge': { gain: 0.8 },
   // Lift the recording's quiet opening by ~6 dB, then ease back as its
   // orchestra fills out. These are track seconds, including after a skip.

@@ -182,7 +182,7 @@ const EDGE = {
 };
 
 // After she drops out of sight the shot holds on the empty edge.
-const LEDGE_MUSIC = { seconds: 9, dawnFade: 5, silence: 0.65 };
+const LEDGE_MUSIC = { seconds: 7, dawnFade: 5, lead: 0.5, silence: 0.8 };
 const EMPTY_LEDGE = {
   dollySpeed: 0.08, // m/s, easing in once she has disappeared
   dollyEase: 1.2,
@@ -1193,11 +1193,13 @@ function updateIslandSequence(dt) {
     case 'vanish': {
       fallElapsed = stateTime;
       placeStepOff(fallElapsed);
-      if (stateTime >= stepOff.releaseAt && stopTime < 0) {
-        // 03J's entrance and release are baked in; start exactly at foot release.
+      if (stateTime >= Math.max(0, stepOff.releaseAt - LEDGE_MUSIC.lead) && ledgeMusicAt < 0) {
+        // Let the soft entrance anticipate foot release by half a second.
         ledgeMusicAt = audio.ctx.currentTime;
         audio.play('music-ledge', { cut: true });
         audio.stop('music-dawn', LEDGE_MUSIC.dawnFade, { linear: true });
+      }
+      if (stateTime >= stepOff.releaseAt && stopTime < 0) {
         edge.copy(brink).add(stepOff.frame(stepOff.releaseAt).offset);
         stopTime = 0;
       }
