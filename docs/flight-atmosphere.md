@@ -8,7 +8,7 @@ Each island is one transparent painted plane: the illustration supplies its clif
 
 Soft alpha edges, painted mist, and per-object lavender atmospheric haze blend the cutouts into the sky. The planes do not write depth, so transparent borders cannot occlude the background. They fade on approaches closer than 11 metres, becoming fully invisible at 4 metres. Missing textures hide the planes instead of displaying rectangles. No global lighting or fog changes are needed.
 
-Selected artwork: `public/assets/flight/painted-islands-atlas.png` (1254 × 1254 RGBA, four paintings). Created with the built-in image generation tool using the user's floating-cliff reference as visual guidance. Approximately 65% of the atlas is fully transparent. Hand-authored UV frames in `ISLAND_ART` preserve each painting's aspect ratio and mist. The wider waterfall painting extends beyond an equal quarter, so it has its own wider frame. The previous stone texture is retained as an unused art study.
+Selected artwork: `public/assets/flight/painted-islands-atlas.png` (1254 × 1254 RGBA, four paintings). Created with the built-in image generation tool using the user's floating-cliff reference as visual guidance. Approximately 65% of the atlas is fully transparent. Hand-authored UV frames in `ISLAND_ART` preserve each painting's aspect ratio and mist. The wider waterfall painting extends beyond an equal quarter, so it has its own wider frame. The unused previous stone texture was removed during repository cleanup and remains recoverable from Git history.
 
 Final generation prompt:
 

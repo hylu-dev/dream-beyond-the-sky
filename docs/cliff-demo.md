@@ -38,7 +38,7 @@ This is palette/direction calibration, not a recovered physical lighting solutio
 - Direct mesh export: `public/assets/flight/cliffs/cliffs.mesh.json`
 - New meadow: `public/assets/flight/cliffs/painted-grass.png`
 - Existing textures: `painted-stone.png`, `painted-foliage.png`, `painted-ivy.png` in the same folder.
-- Earlier study builders/renders are retained under `art/flight-cliffs/previous/`; old named GLBs are retained but not used by this demo.
+- Superseded study builders/renders and the old `crown-wall`, `high-buttress` and `stepped-ledge` GLBs were removed during repository cleanup. They remain recoverable from Git history.
 
 Rebuild assets:
 

@@ -1,6 +1,6 @@
 # Simplified painted cloud concept
 
-Artwork: [painted-cloud-simple-concept.png](painted-cloud-simple-concept.png).
+Historical artwork: `painted-cloud-simple-concept.png` (removed during cleanup; recoverable from Git history).
 
 Generated with the built-in image generation tool, editing the previous
 painted cloud concept. This pass simplifies the micro-billows into broad

@@ -1,6 +1,6 @@
 # Painted cloud sprite concept
 
-Artwork: [painted-cloud-concept.png](painted-cloud-concept.png).
+Historical artwork: `painted-cloud-concept.png` (removed during cleanup; recoverable from Git history).
 Status: style preview awaiting review; not connected to runtime materials.
 The broad outer glow still needs cleanup before this can be a production sprite.
 

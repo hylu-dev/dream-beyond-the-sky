@@ -47,7 +47,7 @@ The title screen waits for one `Promise.all` covering both realms, the character
 | Streamed music (`.mp3`) | 4.3 MiB | browser media buffers only |
 | **Total** | **76.9 MiB** | |
 
-The decoded-sound figure is exact arithmetic from the files' durations. The splat figures follow from PlayCanvas's texture formats and still need confirming in a browser. A further 41 MiB in `public/` ships with every deploy but the game never requests it: the seven `flight/cliffs/*.glb` models (written there by `tools/build-flight-cliffs.py` and read by `verify-cliff-demo.mjs`), the retired `painted-islands-atlas.png`, and the unreferenced `flight/cliff-stone-painterly.png` and `flight/clouds/painted-clouds.png`.
+The decoded-sound figure is exact arithmetic from the files' durations. The splat figures follow from PlayCanvas's texture formats and still need confirming in a browser. Repository cleanup removed the three superseded cliff GLBs, inactive stone/cloud textures and favicon option galleries from `public/`, saving about 29 MiB per deployment. The four current `flight/cliffs/*.glb` models remain for asset export and validation (`tools/build-flight-cliffs.py` and `tools/verify-cliff-demo.mjs`); runtime cliffs use `cliffs.mesh.json`. The island atlas remains referenced by `src/flightScenery.js`.
 
 ## Checks
 
