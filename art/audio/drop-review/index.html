@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The drop — sound auditions</title>
+<link rel="stylesheet" href="review.css">
+<script src="options.js" defer></script><script src="review.js" defer></script>
+</head>
+<body>
+<main>
+<header>
+ <div class="eyebrow">DREAM BEYOND THE SKY <span> / </span> SOUND STUDY 01</div>
+ <h1>A fresh performance,<br><em>for the same held breath.</em></h1>
+ <p class="intro">03J — Soft legato section is selected and applied to the cinematic. Its quieter D5 strings, five-second blend and gradual release are preserved. Earlier takes remain below for comparison.</p>
+ <div class="facts"><span>Softer strings · native D5</span><span>5-second crossfade</span><span>2.5-second release</span><span>Drop at 0:03</span></div>
+</header>
+<section class="stage" aria-label="Playback">
+ <div class="stage-top"><div><span class="eyebrow">NOW AUDITIONING</span><h2 id="now-title">Choose a take below</h2><p id="now-detail">Scene mixes include dawn, ambience, the drop cue, and the flight intro.</p></div><span id="phase" class="phase">READY</span></div>
+ <div id="timeline" class="timeline"><div id="fill"></div><span class="marker drop" style="left:33.708%"><i></i>DROP</span><span class="marker flight" style="left:77.528%"><i></i>FLIGHT</span></div>
+ <div class="transport"><button id="toggle" class="primary" disabled>Play</button><button id="stop" disabled>Stop</button><span id="clock">0:00 / 0:00</span><label class="volume">Volume <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8"></label></div>
+ <p class="stage-note">Preview mix: the new performances begin at DROP and blend with dawn over five seconds. The updated nine-second cues fade away over their final 2.5 seconds, followed by a short musical pause. These auditions do not change the game.</p>
+ <div class="reference"><button id="baseline">Hear dawn without strings</button><span>Dawn-only reference for comparing the string entrance.</span></div>
+ <p id="status" role="status" aria-live="polite"></p>
+</section>
+<section aria-label="Sound options">
+ <div class="section-heading"><h2>The candidates</h2><p>★ Shortlist the ones that work. Notes save in this browser.</p></div>
+ <div id="cards" class="grid"></div>
+</section>
+<section class="shortlist" aria-label="Your shortlist"><div><h2>Your shortlist</h2><p id="summary">No favorites yet. You can also simply tell me the take numbers.</p></div><div class="export"><button id="copy">Copy feedback</button><button id="download">Save feedback</button></div><textarea id="feedback" aria-label="Feedback to share" hidden readonly></textarea></section>
+<footer>Musical intentions are labels, not guarantees of the generated performance. Judge the scene mix first. Raw takes and processing details are retained beside this page.</footer>
+</main>
+<audio id="player" preload="none"></audio>
+</body></html>

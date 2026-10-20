@@ -182,7 +182,13 @@ const EDGE = {
 };
 
 // After she drops out of sight the shot holds on the empty edge.
-const HOLD_SECONDS = 1.9;
+const LEDGE_MUSIC = { seconds: 9, dawnFade: 5, silence: 0.65 };
+const EMPTY_LEDGE = {
+  dollySpeed: 0.08, // m/s, easing in once she has disappeared
+  dollyEase: 1.2,
+  sway: 1.7,
+  airLevel: 0.26, // steady soft wind beneath the score's closing phrase
+};
 
 // As she goes the camera stops dead, nodding with the stop, and holds.
 const STOP = { nodDeg: 0.35, hz: 2.5, decay: 5 };
@@ -456,6 +462,7 @@ const CLOUD_COLORS = {
 const CLOUD_WHOOSH = { gap: 4, pan: 0.4 };
 let cloudWhooshAt = -Infinity;
 function cloudWhoosh({ side }) {
+  if (state === 'fly') flightRig.reactToCloud(side);
   const now = audio.ctx.currentTime;
   if (state !== 'fly' || now - cloudWhooshAt < CLOUD_WHOOSH.gap) return;
   cloudWhooshAt = now;
@@ -770,6 +777,7 @@ function curve(u, to, out) {
 }
 
 function startAwakening() {
+  ledgeMusicAt = -1;
   audio.unlock();
   audio.play('ui-start');
   audio.play('approach-swell', { delay: 0.15, cut: true });
@@ -1047,10 +1055,13 @@ function updateBackOut(dt) {
   }
 }
 
-// Hold the low ledge composition through her last steps and the drop.
-// Both position and bearing stay fixed; the camera does not chase her.
+// Hold through the step and drop, then creep toward the empty ledge while
+// keeping the same bearing. The launch inherits the dolly's forward velocity.
 let stopTime = -1; // seconds since it stopped, or -1
-function updateHoldCamera(dt, { sway = 1 } = {}) {
+let ledgeMusicAt = -1;
+const ledgeDollyDirection = new Vec3();
+const ledgeDollyOffset = new Vec3();
+function updateHoldCamera(dt, { emptyTime = 0 } = {}) {
   let nod = 0;
   if (stopTime >= 0) {
     stopTime += dt;
@@ -1059,6 +1070,16 @@ function updateHoldCamera(dt, { sway = 1 } = {}) {
   camPos.copy(edgeShot.pose.position);
   look.copy(edgeShot.pose.target);
   camFov = edgeShot.pose.fov;
+  ledgeDollyDirection.sub2(look, camPos).normalize();
+  const t = Math.max(0, emptyTime), ease = EMPTY_LEDGE.dollyEase;
+  const u = Math.min(t / ease, 1);
+  // Integral of smoothstep: starts at rest and reaches a steady slow creep.
+  const distance = EMPTY_LEDGE.dollySpeed * (t < ease ? ease * (u ** 3 - 0.5 * u ** 4) : t - ease / 2);
+  ledgeDollyOffset.copy(ledgeDollyDirection).mulScalar(distance);
+  camPos.add(ledgeDollyOffset);
+  look.add(ledgeDollyOffset);
+  camVel.copy(ledgeDollyDirection).mulScalar(EMPTY_LEDGE.dollySpeed * u * u * (3 - 2 * u));
+  const sway = 1 + (EMPTY_LEDGE.sway - 1) * smooth(0, ease, t);
   applyCamera(dt, HOLD_SWAY, sway, nod);
 }
 
@@ -1095,9 +1116,10 @@ function updateAir(dt) {
   const drift = early ? 1 - going : state === 'turn' ? 0 : state === 'dawn' ? smooth(0, SCATTER.returnSeconds, stateTime) : 1;
   ambience.update(dt, camera, { night: smooth(3, -10, el), light: smooth(-6, 10, el), wind: gusty, windDir, fireflies, drift });
   fireflyLight.update();
-  // Its sound: the night wind, giving way to the dawn birds; the wind, which
-  // never drops below a strong breeze; the rumble on the edge.
-  audio.level('night-bed', smooth(3, -10, el));
+  // Start the soft air under the ledge pause so it is already audible when
+  // the score thins out. Carry it through the empty shot and into the launch.
+  const ledgeAir = ['brink', 'vanish', 'drop', 'hold', 'launch'].includes(state) ? EMPTY_LEDGE.airLevel : 0;
+  audio.level('night-bed', Math.max(smooth(3, -10, el), ledgeAir), 0.7);
   audio.level('dawn-bed', smooth(-6, 10, el), 2);
   audio.level('island-wind', Math.min(0.5 + 1.5 * gusty, 1));
   audio.level('rumble', rumble, 0.1);
@@ -1172,7 +1194,10 @@ function updateIslandSequence(dt) {
       fallElapsed = stateTime;
       placeStepOff(fallElapsed);
       if (stateTime >= stepOff.releaseAt && stopTime < 0) {
-        audio.stop('music-dawn', 0.18);
+        // 03J's entrance and release are baked in; start exactly at foot release.
+        ledgeMusicAt = audio.ctx.currentTime;
+        audio.play('music-ledge', { cut: true });
+        audio.stop('music-dawn', LEDGE_MUSIC.dawnFade, { linear: true });
         edge.copy(brink).add(stepOff.frame(stepOff.releaseAt).offset);
         stopTime = 0;
       }
@@ -1194,10 +1219,9 @@ function updateIslandSequence(dt) {
         updateHoldCamera(dt);
         if (stateTime >= EDGE.hiddenAfter) setState('hold');
       } else {
-        // Fade the sway out so the launch move picks up a steady camera.
-        const sway = 1 - smooth(HOLD_SECONDS - 0.6, HOLD_SECONDS, stateTime);
-        updateHoldCamera(dt, { sway });
-        if (stateTime >= HOLD_SECONDS) {
+        updateHoldCamera(dt, { emptyTime: stateTime });
+        // Follow the audio clock so the full cue and silence survive frame delays.
+        if (ledgeMusicAt >= 0 && audio.ctx.currentTime - ledgeMusicAt >= LEDGE_MUSIC.seconds + LEDGE_MUSIC.silence) {
           rumble = 0;
           startLaunch();
         }
@@ -1224,6 +1248,7 @@ let confidence = 0; // seconds of feel for it since, sooner while steering
 const skyAnchor = new Vec3(); // her position when the sky scene took over
 
 function startLaunch() {
+  ledgeMusicAt = -1;
   audio.play('music-flight', { cut: true }); // from its start, as she bursts up
   lipAlong = edge.dot(edgeDir);
   const start = new Vec3().copy(edgeDir).mulScalar(LAUNCH.ahead).add(edge);
@@ -1450,6 +1475,7 @@ function updateSkip(dt) {
 }
 
 function skipToFlight() {
+  ledgeMusicAt = -1;
   skipping = true;
   audio.play('ui-skip');
   audio.cut(SKIP.blackSeconds);
@@ -1524,8 +1550,11 @@ function updateFlight(dt) {
   flyInput.climb = dodge.climb === null ? climb : climb + (dodge.climb - climb) * dodge.weight;
   flight.update(dt, flyInput);
   flightCliffs.keepOff(flight, dt);
+  flightRig.update(dt, flight, {
+    uncertainty: 0.35 + shaky * 0.65,
+    cliff: flightCliffs.awareness(flight),
+  });
   placeFlyer();
-  flightRig.update(dt, flight);
   chaseCamera.update(dt, flight);
   windFx.update(dt, flight, scene.cameraEntity);
   skyClouds.update(dt, flight, scene.cameraEntity);
@@ -1879,6 +1908,7 @@ function placeFlyer() {
 if (new URLSearchParams(location.search).get('debug') === '1') {
   window.__demo = {
     flight,
+    flightRig,
     character,
     seatPose,
     windFx,

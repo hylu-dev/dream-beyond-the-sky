@@ -36,6 +36,7 @@ class Param {
   setValueCurveAtTime(curve, t, d) { this.curves.push({ curve, t, d }); }
   setTargetAtTime(v, t, c) { this.value = v; (this.targets ??= []).push({ v, t, c }); }
   setValueAtTime(v) { this.value = v; }
+  linearRampToValueAtTime(v, t) { (this.ramps ??= []).push({ v, t }); }
   cancelScheduledValues() { this.targets = []; }
 }
 class Node {
@@ -162,6 +163,17 @@ audio.play('launch');
 const launch = starts().at(-1)[3];
 audio.stop('launch', 0.2);
 check(Math.abs(launch.stopAt - (ctx.currentTime + 0.2)) < 1e-6, 'stop() stops one sound by name');
+audio.play('music-dawn', { cut: true });
+const dawn = starts().at(-1)[3];
+audio.stop('music-dawn', 5, { linear: true });
+const dawnRamp = dawn.targets[0].gain.ramps?.at(-1);
+check(dawnRamp?.v === 0 && dawnRamp.t === ctx.currentTime + 5 && dawn.stopAt === dawnRamp.t, 'dawn fades linearly to silence across the full five-second blend');
+audio.play('music-ledge', { cut: true });
+const ledge = starts().at(-1)[3];
+check(ledge.buffer.name === 'music-ledge' && Math.abs(ledge.targets[0].gain.value - 0.8) < 1e-6, 'approved ledge cue plays at its review mix gain');
+audio.cut(0.3);
+check(ledge.stopAt === ctx.currentTime + 0.3, 'skipping cuts the ledge strings');
+check(dawn.stopAt === ctx.currentTime + 0.3, 'skipping also shortens dawn’s in-progress fade');
 audio.play('bank-whoosh');
 check(/^bank-whoosh-[123]$/.test(starts().at(-1)[1]), 'a sound with variants plays one of them');
 

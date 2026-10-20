@@ -1,0 +1,916 @@
+{
+  "created": "2026-10-20",
+  "variants": [
+    {
+      "id": "03J",
+      "title": "Soft legato section",
+      "description": "A new full violin section with sustained legato bowing and a more even body. Strings sit 6 dB lower, with a gentle reduction in their bright edge. Same pitch and fades as 03G.",
+      "character": "Soft, blended sustained D5 strings; no local repitching.",
+      "source": "raw/03J.mp3",
+      "kind": "music",
+      "model": "music_v2",
+      "generatedMs": 12000,
+      "native": true,
+      "targetMatched": true,
+      "softMix": true,
+      "harmony": "D5 \u00b7 softer orchestral blend",
+      "compositionPlan": {
+        "chunks": [
+          {
+            "text": "[Instrumental: continuous soft legato violin sustain]",
+            "duration_ms": 12000,
+            "positive_styles": [
+              "lush acoustic violin ensemble",
+              "smooth floating legato sustain",
+              "very soft light bowing",
+              "one steady D5 note at 587 Hz matching reference pitch",
+              "twelve violins in unison",
+              "gentle blended orchestral tone",
+              "even sustained dynamics for twelve seconds",
+              "restrained vibrato",
+              "bow changes are inaudible",
+              "natural diffuse concert hall sound"
+            ],
+            "negative_styles": [
+              "scratchy bowing",
+              "rasping",
+              "grainy distortion",
+              "tremolo",
+              "flutter",
+              "pulsing",
+              "heavy vibrato",
+              "sforzando",
+              "hard attack",
+              "sul ponticello",
+              "harmonics",
+              "whistle",
+              "synthesizer",
+              "low octave",
+              "bass",
+              "melody",
+              "percussion",
+              "voices"
+            ],
+            "context_adherence": "high",
+            "conditioning_ref": {
+              "song_id": "hGQFsxBHLiU96fsM7dQM_upload",
+              "range": {
+                "start_ms": 3000,
+                "end_ms": 6500
+              }
+            },
+            "condition_strength": "high"
+          }
+        ]
+      },
+      "reference": {
+        "source": "audio/03D2-solo.mp3",
+        "preparation": "Padded with silence to twelve seconds for upload; generation conditioned only on seconds 3\u20136.5.",
+        "purpose": "Pitch and orchestral character reference; generated output is not locally repitched."
+      },
+      "audioSettings": {
+        "seconds": 9,
+        "fadeIn": 5,
+        "fadeOut": 2.5,
+        "trimLeading": false,
+        "lufs": -30,
+        "highShelfDb": -3,
+        "highShelfHz": 3200
+      },
+      "previewOverride": {
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFade": 5,
+        "silence": 0.65
+      },
+      "pitchScreening": {
+        "method": "Raw-file FFT peaks at one-second windows; lower-octave peaks screened.",
+        "fundamentalHz": [
+          590,
+          587,
+          588,
+          587,
+          588
+        ],
+        "windowStartSeconds": [
+          1,
+          3,
+          5,
+          7,
+          9
+        ],
+        "targetHz": 587.33
+      },
+      "solo": "audio/03J-solo.mp3",
+      "mix": "audio/03J-mix.mp3",
+      "processing": {
+        "lufs": -30,
+        "seconds": 9,
+        "leadingSilenceTrimmed": false,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 5,
+        "fadeOut": 2.5,
+        "highShelfDb": -3,
+        "highShelfHz": 3200
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFrom": 26,
+        "dawnFade": 5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "03I",
+      "title": "Soft muted section",
+      "description": "A new muted violin section with light bowing and restrained vibrato. Strings sit 6 dB lower, with a gentle reduction in their bright edge. Same pitch and fades as 03G.",
+      "character": "Soft, blended sustained D5 strings; no local repitching.",
+      "source": "raw/03I.mp3",
+      "kind": "music",
+      "model": "music_v2",
+      "generatedMs": 12000,
+      "native": true,
+      "targetMatched": true,
+      "softMix": true,
+      "harmony": "D5 \u00b7 softer orchestral blend",
+      "compositionPlan": {
+        "chunks": [
+          {
+            "text": "[Instrumental: continuous soft legato violin sustain]",
+            "duration_ms": 12000,
+            "positive_styles": [
+              "orchestral violins con sordino",
+              "silky soft legato",
+              "gentle light bow pressure",
+              "sixteen violins playing one unified D5 at 587 Hz",
+              "match the sustained pitch of the reference exactly",
+              "warm rounded tone with very little bow noise",
+              "sul tasto bowing",
+              "minimal vibrato",
+              "seamless staggered bow changes",
+              "steady pianissimo sustain lasting twelve seconds",
+              "distant concert hall microphone perspective",
+              "soft blended orchestral texture"
+            ],
+            "negative_styles": [
+              "scratchy bowing",
+              "rasping",
+              "grainy distortion",
+              "tremolo",
+              "flutter",
+              "pulsing",
+              "heavy vibrato",
+              "sforzando",
+              "hard attack",
+              "sul ponticello",
+              "harmonics",
+              "whistle",
+              "synthesizer",
+              "low octave",
+              "bass",
+              "melody",
+              "percussion",
+              "voices"
+            ],
+            "context_adherence": "high",
+            "conditioning_ref": {
+              "song_id": "hGQFsxBHLiU96fsM7dQM_upload",
+              "range": {
+                "start_ms": 3000,
+                "end_ms": 6500
+              }
+            },
+            "condition_strength": "high"
+          }
+        ]
+      },
+      "reference": {
+        "source": "audio/03D2-solo.mp3",
+        "preparation": "Padded with silence to twelve seconds for upload; generation conditioned only on seconds 3\u20136.5.",
+        "purpose": "Pitch and orchestral character reference; generated output is not locally repitched."
+      },
+      "audioSettings": {
+        "seconds": 9,
+        "fadeIn": 5,
+        "fadeOut": 2.5,
+        "trimLeading": false,
+        "lufs": -30,
+        "highShelfDb": -3,
+        "highShelfHz": 3200
+      },
+      "previewOverride": {
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFade": 5,
+        "silence": 0.65
+      },
+      "pitchScreening": {
+        "method": "Raw-file FFT peaks at one-second windows; lower-octave peaks screened.",
+        "fundamentalHz": [
+          589,
+          589,
+          588,
+          588,
+          588
+        ],
+        "windowStartSeconds": [
+          1,
+          3,
+          5,
+          7,
+          9
+        ],
+        "targetHz": 587.33
+      },
+      "solo": "audio/03I-solo.mp3",
+      "mix": "audio/03I-mix.mp3",
+      "processing": {
+        "lufs": -30,
+        "seconds": 9,
+        "leadingSilenceTrimmed": false,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 5,
+        "fadeOut": 2.5,
+        "highShelfDb": -3,
+        "highShelfHz": 3200
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFrom": 26,
+        "dawnFade": 5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "03G",
+      "title": "Native D5 \u00b7 orchestral section",
+      "description": "A fresh ElevenLabs performance generated at 03D2\u2019s D5 pitch using an audio reference. Natural ensemble bowing, with the same slow blend and gradual fade away.",
+      "character": "Reference-guided orchestral violin section, steady D5 sustain with natural ensemble variation.",
+      "source": "raw/03G.mp3",
+      "kind": "music",
+      "model": "music_v2",
+      "generatedMs": 12000,
+      "native": true,
+      "targetMatched": true,
+      "harmony": "D5 \u00b7 generated at the target pitch",
+      "compositionPlan": {
+        "chunks": [
+          {
+            "text": "[Instrumental: one sustained high orchestral violin note]",
+            "duration_ms": 12000,
+            "positive_styles": [
+              "live orchestral violin section",
+              "rich full natural bowed acoustic string tone",
+              "eight violins in unison",
+              "sustain the same D5 pitch as the reference",
+              "587 Hz fundamental D natural fifth octave",
+              "gentle natural ensemble vibrato",
+              "continuous legato bowing for twelve seconds",
+              "steady volume and steady pitch",
+              "restrained cinematic suspense",
+              "clean concert hall recording"
+            ],
+            "negative_styles": [
+              "synthetic tone",
+              "metallic pitch-shifting artifacts",
+              "whistle",
+              "harmonics",
+              "low octave",
+              "bass",
+              "cello",
+              "melody",
+              "chord progression",
+              "percussion",
+              "voice"
+            ],
+            "context_adherence": "high",
+            "conditioning_ref": {
+              "song_id": "hGQFsxBHLiU96fsM7dQM_upload",
+              "range": {
+                "start_ms": 3000,
+                "end_ms": 6500
+              }
+            },
+            "condition_strength": "high"
+          }
+        ]
+      },
+      "reference": {
+        "source": "audio/03D2-solo.mp3",
+        "preparation": "Padded with silence to twelve seconds for upload; generation conditioned only on seconds 3\u20136.5.",
+        "purpose": "Pitch and orchestral character reference; generated output is not locally repitched."
+      },
+      "pitchScreening": {
+        "method": "FFT peaks at one-second windows throughout the raw recording; checked for lower-octave fundamentals.",
+        "fundamentalHz": [
+          589,
+          589,
+          591,
+          589,
+          588
+        ],
+        "windowStartSeconds": [
+          1,
+          3,
+          5,
+          7,
+          9
+        ],
+        "targetHz": 587.33
+      },
+      "audioSettings": {
+        "seconds": 9,
+        "fadeIn": 5,
+        "fadeOut": 2.5,
+        "trimLeading": false
+      },
+      "previewOverride": {
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFade": 5,
+        "silence": 0.65
+      },
+      "solo": "audio/03G-solo.mp3",
+      "mix": "audio/03G-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 9,
+        "leadingSilenceTrimmed": false,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 5,
+        "fadeOut": 2.5
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFrom": 26,
+        "dawnFade": 5,
+        "silence": 0.65
+      }
+    },
+    {
+      "source": "raw/03F.mp3",
+      "kind": "music",
+      "model": "music_v2",
+      "generatedMs": 12000,
+      "prompt": "A twelve-second acoustic chamber string sustain for a cinematic cliff fall. Three violins, bright upper-register D5 and A5 held together, very fine quiet bowed tremolo. Real violin body and delicate bow movement, no harmonic whistle and no shriek. Begin softly but audibly at the very start. Keep the same suspended chord and consistent volume for ten seconds with uninterrupted bowing; no early fade, melody, runs, rhythm, extra notes, or chord changes. Brief gentle release only after ten seconds. Intimate dry clean orchestral recording. No lower strings, no bass, no percussion, piano, brass, synth or voices.",
+      "id": "03F2",
+      "title": "Dedicated tremolo \u00b7 matched pitch",
+      "description": "The fresh ElevenLabs performance tuned to 03C\u2019s register, with nine seconds of strings and a gradual 2.5-second fade away.",
+      "character": "Fresh string performance with pitch correction and an extended release.",
+      "pitchMatched": true,
+      "derivedFrom": "03F",
+      "harmony": "D5 / A5 \u00b7 same register as 03C",
+      "audioSettings": {
+        "seconds": 9,
+        "pitchFactor": 2,
+        "stretch": 1,
+        "fadeIn": 5,
+        "fadeOut": 2.5,
+        "trimLeading": false
+      },
+      "previewOverride": {
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFade": 5,
+        "silence": 0.65
+      },
+      "solo": "audio/03F2-solo.mp3",
+      "mix": "audio/03F2-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 9,
+        "leadingSilenceTrimmed": false,
+        "pitchFactor": 2,
+        "stretch": 1,
+        "fadeIn": 5,
+        "fadeOut": 2.5
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFrom": 26,
+        "dawnFade": 5,
+        "silence": 0.65
+      }
+    },
+    {
+      "source": "raw/03D.mp3",
+      "kind": "music",
+      "model": "music_v2",
+      "generatedMs": 12000,
+      "prompt": "A continuous twelve-second sustained chord played by a small section of three acoustic violins in their HIGH register. The chord is D5 and A5, an open fifth: D above treble middle C, and the A above that. Ordinary full bowed violin tone, not artificial harmonics. Clear soft bow attack immediately at time zero, then steady continuous bowing, almost no vibrato. Restrained cinematic suspense. Sustain at the same volume through at least ten seconds, no early fade, no melody, no new notes, no chord change, no resolution. Only release at the very end. Clean real orchestral violins with body, dry intimate recording. No lower octave, violas, cellos, bass, percussion, piano, brass, synthesizer, whistle, singing or voices.",
+      "id": "03D2",
+      "title": "Dedicated steady \u00b7 matched pitch",
+      "description": "The fresh ElevenLabs performance tuned to 03C\u2019s register, with nine seconds of strings and a gradual 2.5-second fade away.",
+      "character": "Fresh string performance with pitch correction and an extended release.",
+      "pitchMatched": true,
+      "derivedFrom": "03D",
+      "harmony": "D5 \u00b7 same register as 03C",
+      "audioSettings": {
+        "seconds": 9,
+        "pitchFactor": 1.4983070768766815,
+        "stretch": 1,
+        "fadeIn": 5,
+        "fadeOut": 2.5,
+        "trimLeading": false
+      },
+      "previewOverride": {
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFade": 5,
+        "silence": 0.65
+      },
+      "solo": "audio/03D2-solo.mp3",
+      "mix": "audio/03D2-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 9,
+        "leadingSilenceTrimmed": false,
+        "pitchFactor": 1.4983070768766815,
+        "stretch": 1,
+        "fadeIn": 5,
+        "fadeOut": 2.5
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFrom": 26,
+        "dawnFade": 5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "03D",
+      "title": "Dedicated strings \u00b7 steady",
+      "description": "A newly generated small section with a steady, restrained sustain.",
+      "character": "Unified gentle bowing, almost no vibrato, intimate three-player string section, focused and clean",
+      "prompt": "A continuous twelve-second sustained chord played by a small section of three acoustic violins in their HIGH register. The chord is D5 and A5, an open fifth: D above treble middle C, and the A above that. Ordinary full bowed violin tone, not artificial harmonics. Clear soft bow attack immediately at time zero, then steady continuous bowing, almost no vibrato. Restrained cinematic suspense. Sustain at the same volume through at least ten seconds, no early fade, no melody, no new notes, no chord change, no resolution. Only release at the very end. Clean real orchestral violins with body, dry intimate recording. No lower octave, violas, cellos, bass, percussion, piano, brass, synthesizer, whistle, singing or voices.",
+      "source": "raw/03D.mp3",
+      "kind": "music",
+      "model": "music_v2",
+      "generatedMs": 12000,
+      "native": true,
+      "harmony": "G \u00b7 native violin section",
+      "audioSettings": {
+        "seconds": 9,
+        "fadeIn": 5,
+        "fadeOut": 0.5,
+        "trimLeading": false
+      },
+      "previewOverride": {
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFade": 5,
+        "silence": 0.65
+      },
+      "solo": "audio/03D-solo.mp3",
+      "mix": "audio/03D-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 9,
+        "leadingSilenceTrimmed": false,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 5,
+        "fadeOut": 0.5
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFrom": 26,
+        "dawnFade": 5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "03E",
+      "title": "Dedicated strings \u00b7 expressive",
+      "description": "A fresh performance with gentle bow movement and natural vibrato.",
+      "character": "Three-player violin section with gentle natural vibrato, subtle expressive bow movement, rounded acoustic tone, poised cinematic suspense",
+      "prompt": "Twelve seconds of clean upper-register orchestral strings, three real acoustic violins playing a single suspended open fifth E5 and A5. Bright, clear, natural violin sound with warm body, not a whistle or a harmonic effect. One gentle bow entrance audible immediately, delicate natural vibrato, then hold this same harmony throughout, no melody, no chord progression, no other notes. Quiet suspense for a cinematic cliff fall, a suspended held breath. Steady sustained dynamics through the first ten seconds, no early decay, release only at the very end. No lower strings, bass, drums, impacts, piano, brass, synth, artificial harmonics or voices.",
+      "source": "raw/03E.mp3",
+      "kind": "music",
+      "model": "music_v2",
+      "generatedMs": 12000,
+      "native": true,
+      "harmony": "E + A \u00b7 native violin section",
+      "audioSettings": {
+        "seconds": 9,
+        "fadeIn": 5,
+        "fadeOut": 0.5,
+        "trimLeading": false
+      },
+      "previewOverride": {
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFade": 5,
+        "silence": 0.65
+      },
+      "solo": "audio/03E-solo.mp3",
+      "mix": "audio/03E-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 9,
+        "leadingSilenceTrimmed": false,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 5,
+        "fadeOut": 0.5
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFrom": 26,
+        "dawnFade": 5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "03F",
+      "title": "Dedicated strings \u00b7 tremolo",
+      "description": "A fresh section with very fine tremolo for a little more unease.",
+      "character": "Small acoustic violin section, fine quiet bowed tremolo, nervous but delicate, not an aggressive stinger or a shriek, stable pitch",
+      "prompt": "A twelve-second acoustic chamber string sustain for a cinematic cliff fall. Three violins, bright upper-register D5 and A5 held together, very fine quiet bowed tremolo. Real violin body and delicate bow movement, no harmonic whistle and no shriek. Begin softly but audibly at the very start. Keep the same suspended chord and consistent volume for ten seconds with uninterrupted bowing; no early fade, melody, runs, rhythm, extra notes, or chord changes. Brief gentle release only after ten seconds. Intimate dry clean orchestral recording. No lower strings, no bass, no percussion, piano, brass, synth or voices.",
+      "source": "raw/03F.mp3",
+      "kind": "music",
+      "model": "music_v2",
+      "generatedMs": 12000,
+      "native": true,
+      "harmony": "D + A \u00b7 native violin section",
+      "audioSettings": {
+        "seconds": 9,
+        "fadeIn": 5,
+        "fadeOut": 0.5,
+        "trimLeading": false
+      },
+      "previewOverride": {
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFade": 5,
+        "silence": 0.65
+      },
+      "solo": "audio/03F-solo.mp3",
+      "mix": "audio/03F-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 9,
+        "leadingSilenceTrimmed": false,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 5,
+        "fadeOut": 0.5
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFrom": 26,
+        "dawnFade": 5,
+        "silence": 0.65
+      }
+    },
+    {
+      "kind": "music",
+      "prompt": "Four seconds of three acoustic orchestral violins playing one concert A4 (440 Hz) in unison. Begin immediately with a unified soft bow attack, hold the note steadily, warm real string body and a little natural ensemble movement. Suspended cinematic tension, intimate small ensemble, no melody, no chord changes, no bass, no brass, no piano, no percussion, no synth, no vocals. Clean bowed strings, no artificial harmonics or whistle. No fade-in silence.",
+      "source": "raw/03.mp3",
+      "id": "03C",
+      "title": "Small strings \u00b7 slow rise",
+      "description": "Higher than 03B, held for nine seconds. Dawn and strings crossfade over five seconds.",
+      "harmony": "D + A \u00b7 one octave above original",
+      "revision": {
+        "pitchFactor": 2,
+        "stretch": 3,
+        "seconds": 9,
+        "fadeIn": 5,
+        "fadeOut": 0.5,
+        "sustain": {
+          "start": 3,
+          "end": 5,
+          "repeats": 3,
+          "crossfade": 0.4
+        }
+      },
+      "previewOverride": {
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFade": 5,
+        "silence": 0.65
+      },
+      "derivedFrom": "03",
+      "solo": "audio/03C-solo.mp3",
+      "mix": "audio/03C-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 9,
+        "leadingSilenceTrimmed": true,
+        "pitchFactor": 2,
+        "stretch": 3,
+        "fadeIn": 5,
+        "fadeOut": 0.5,
+        "sustain": {
+          "start": 3,
+          "end": 5,
+          "repeats": 3,
+          "crossfade": 0.4
+        }
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 12.65,
+        "length": 15.65,
+        "dawnFrom": 26,
+        "dawnFade": 5,
+        "silence": 0.65
+      }
+    },
+    {
+      "kind": "music",
+      "prompt": "Four seconds of three acoustic orchestral violins playing one concert A4 (440 Hz) in unison. Begin immediately with a unified soft bow attack, hold the note steadily, warm real string body and a little natural ensemble movement. Suspended cinematic tension, intimate small ensemble, no melody, no chord changes, no bass, no brass, no piano, no percussion, no synth, no vocals. Clean bowed strings, no artificial harmonics or whistle. No fade-in silence.",
+      "source": "raw/03.mp3",
+      "id": "03B",
+      "title": "Small strings \u00b7 higher & longer",
+      "description": "Your chosen section, a fifth higher and held for six seconds. A slower blend from dawn.",
+      "harmony": "A + E \u00b7 raised a fifth",
+      "revision": {
+        "pitchFactor": 1.4983070768766815,
+        "stretch": 1.8,
+        "seconds": 6,
+        "fadeIn": 0.25,
+        "fadeOut": 0.4
+      },
+      "previewOverride": {
+        "flightAt": 9.65,
+        "length": 12.65,
+        "dawnFade": 2.5,
+        "silence": 0.65
+      },
+      "derivedFrom": "03",
+      "solo": "audio/03B-solo.mp3",
+      "mix": "audio/03B-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 6,
+        "leadingSilenceTrimmed": true,
+        "pitchFactor": 1.4983070768766815,
+        "stretch": 1.8,
+        "fadeIn": 0.25,
+        "fadeOut": 0.4
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 9.65,
+        "length": 12.65,
+        "dawnFrom": 26,
+        "dawnFade": 2.5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "01",
+      "title": "Solo violin",
+      "kind": "music",
+      "description": "A clean bowed note with a quick, natural entrance.",
+      "prompt": "Four seconds of isolated acoustic solo violin. A single concert A4, 440 Hz, ordinary bowed violin tone with a full natural body. Begin the note immediately with a gentle but clear 80 ms bow attack, then hold evenly with very subtle vibrato. Suspense through restraint, one held breath. No melody, no second note, no harmonics, no glissando, no whistle, no synth, no bass, no accompaniment, no percussion, no voices. Studio dry recording, clean beautiful real violin tone. Sustain until the final half second.",
+      "source": "raw/01.mp3",
+      "harmony": "C \u00b7 lower register",
+      "solo": "audio/01-solo.mp3",
+      "mix": "audio/01-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 3.25,
+        "leadingSilenceTrimmed": true,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 0.025,
+        "fadeOut": 0.25
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 6.9,
+        "length": 9.9,
+        "dawnFrom": 26,
+        "dawnFade": 2.5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "02",
+      "title": "Broad vibrato",
+      "kind": "music",
+      "description": "A sustained solo tone with more movement in the bow.",
+      "prompt": "Four seconds of solo acoustic violin playing one sustained A5, 880 Hz, normal bowed tone, NOT artificial harmonics. Immediate clear soft bow attack, delicate vibrato, full violin body. Quiet cinematic suspense, stable pitch, hold the single note. No piercing whistle, no shriek, no synth, no accompaniment, no melody or other notes, no percussion, no voices. Dry studio violin. Begin audibly at the start and hold.",
+      "source": "raw/02.mp3",
+      "harmony": "C \u00b7 lower register",
+      "solo": "audio/02-solo.mp3",
+      "mix": "audio/02-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 3.25,
+        "leadingSilenceTrimmed": true,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 0.025,
+        "fadeOut": 0.25
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 6.9,
+        "length": 9.9,
+        "dawnFrom": 26,
+        "dawnFade": 2.5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "03",
+      "title": "Small string section",
+      "kind": "music",
+      "description": "A fuller unison sound, restrained and steady.",
+      "prompt": "Four seconds of three acoustic orchestral violins playing one concert A4 (440 Hz) in unison. Begin immediately with a unified soft bow attack, hold the note steadily, warm real string body and a little natural ensemble movement. Suspended cinematic tension, intimate small ensemble, no melody, no chord changes, no bass, no brass, no piano, no percussion, no synth, no vocals. Clean bowed strings, no artificial harmonics or whistle. No fade-in silence.",
+      "source": "raw/03.mp3",
+      "harmony": "D + A \u00b7 suspended",
+      "solo": "audio/03-solo.mp3",
+      "mix": "audio/03-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 3.25,
+        "leadingSilenceTrimmed": true,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 0.025,
+        "fadeOut": 0.25
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 6.9,
+        "length": 9.9,
+        "dawnFrom": 26,
+        "dawnFade": 2.5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "04",
+      "title": "Fine tremolo",
+      "kind": "music",
+      "description": "Small bow tremors add unease to a single note.",
+      "prompt": "Four seconds of a solo violin holding concert A4, 440 Hz, with fine rapid bowed tremolo, very restrained. Audible immediately, no build-up silence. Clean recognizable violin, natural woody string body, nervous bow movement, steady pitch with almost no vibrato. No melody, no glissando, no synthetic sound, no harmonic whistle, no accompaniment, no other instruments, no percussion or voices. Intimate suspense cue, never a shriek.",
+      "source": "raw/04.mp3",
+      "harmony": "A \u00b7 middle register",
+      "solo": "audio/04-solo.mp3",
+      "mix": "audio/04-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 3.25,
+        "leadingSilenceTrimmed": true,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 0.025,
+        "fadeOut": 0.25
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 6.9,
+        "length": 9.9,
+        "dawnFrom": 26,
+        "dawnFade": 2.5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "05",
+      "title": "Bow catch",
+      "kind": "sfx",
+      "description": "A short bow accent that settles into a held note.",
+      "prompt": "Isolated acoustic violin on A4, 440 Hz. One brief firm bow catch at the very beginning, immediately settling into a clean sustained string note for three seconds. Natural violin body, tiny vibrato, dramatic but restrained. Dry close recording. No squeal, whistle, pitch slide, extra notes, synth, percussion, voices or accompaniment.",
+      "source": "raw/05.mp3",
+      "harmony": "A \u00b7 upper register",
+      "solo": "audio/05-solo.mp3",
+      "mix": "audio/05-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 3.25,
+        "leadingSilenceTrimmed": true,
+        "pitchFactor": 0.5,
+        "stretch": 1,
+        "fadeIn": 0.025,
+        "fadeOut": 0.25
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 6.9,
+        "length": 9.9,
+        "dawnFrom": 26,
+        "dawnFade": 2.5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "06",
+      "title": "Soft bow",
+      "kind": "music",
+      "description": "A quieter, rounded tone with a gentle bow entrance.",
+      "prompt": "Four seconds of a clean solo acoustic violin holding one concert E4 (330 Hz). Ordinary warm bowed violin tone in its comfortable register, with delicate natural vibrato. Begin audibly immediately with a gentle bow change, sustain evenly. Quiet cinematic suspense. No harmonics, no whistle, no high shriek, no distortion, no glissando, no melody, no chords, no accompaniment, no other instruments or voices. Dry close studio recording.",
+      "source": "raw/06.mp3",
+      "harmony": "E \u00b7 lower register",
+      "solo": "audio/06-solo.mp3",
+      "mix": "audio/06-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 3.25,
+        "leadingSilenceTrimmed": true,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 0.025,
+        "fadeOut": 0.25
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 6.9,
+        "length": 9.9,
+        "dawnFrom": 26,
+        "dawnFade": 2.5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "07",
+      "title": "Near the bridge",
+      "kind": "sfx",
+      "description": "A little bow grain and friction for a darker edge.",
+      "prompt": "Isolated solo violin holds A4, 440 Hz, bowed slightly near the bridge. Audible immediately. Real acoustic string body with a delicate grainy bow texture, steady uneasy sustain. Subtle cinematic tension. Not a screech, no pitch bend, no high whistle, no melody, no synth, no accompaniment, no percussion or voice. Dry close recording.",
+      "source": "raw/07.mp3",
+      "harmony": "A \u00b7 middle register",
+      "solo": "audio/07-solo.mp3",
+      "mix": "audio/07-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 3.25,
+        "leadingSilenceTrimmed": true,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 0.025,
+        "fadeOut": 0.25
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 6.9,
+        "length": 9.9,
+        "dawnFrom": 26,
+        "dawnFade": 2.5,
+        "silence": 0.65
+      }
+    },
+    {
+      "id": "08",
+      "title": "Short string accent",
+      "kind": "sfx",
+      "description": "A quick ensemble accent with a shorter tail.",
+      "prompt": "One short restrained orchestral violin accent on A4, 440 Hz, immediately at the start. Clean acoustic strings, firm bow entrance, then a two-second sustained tail that gently releases. A sharp intake of breath as someone steps into empty space. No percussion, brass, bass, synth, whistle, melody, glissando, voices or extra hits.",
+      "source": "raw/08.mp3",
+      "harmony": "A \u00b7 upper register",
+      "solo": "audio/08-solo.mp3",
+      "mix": "audio/08-mix.mp3",
+      "processing": {
+        "lufs": -24,
+        "seconds": 2.1,
+        "leadingSilenceTrimmed": true,
+        "pitchFactor": 1,
+        "stretch": 1,
+        "fadeIn": 0.025,
+        "fadeOut": 0.25
+      },
+      "preview": {
+        "dropAt": 3,
+        "flightAt": 6.9,
+        "length": 9.9,
+        "dawnFrom": 26,
+        "dawnFade": 2.5,
+        "silence": 0.65
+      }
+    }
+  ],
+  "preview": {
+    "dropAt": 3,
+    "flightAt": 6.9,
+    "length": 9.9,
+    "dawnFrom": 26,
+    "dawnFade": 2.5,
+    "silence": 0.65,
+    "notes": "Audio mockups. Effects start at foot release. 03C\u201303F use five-second crossfades and longer previews. 03D\u201303F retain their generated pitch. 03F2 and 03D2 tune those fresh performances to 03C\u2019s register, preserve their duration without loops, and release over 2.5 seconds. 03G is a reference-guided native D5 performance with a 2.5-second release and no local pitch correction. 03I and 03J are softer native D5 performances at -30 LUFS, with a gentle -3 dB treble shelf. Game audio is unchanged."
+  },
+  "selected": "03J"
+}

@@ -40,6 +40,8 @@ export const SOUNDS = {
   // blow.
   'music-night': { stream: true, loop: true, gain: 0.55, crossfade: 6 },
   'music-dawn': { gain: 0.8 },
+  // Approved 03J: nine seconds at -30 LUFS, with its entrance/release baked in.
+  'music-ledge': { gain: 0.8 },
   // Lift the recording's quiet opening by ~6 dB, then ease back as its
   // orchestra fills out. These are track seconds, including after a skip.
   'music-flight': { stream: true, gain: 0.8, introLift: { gain: 2, hold: 10.5, end: 12 } },
@@ -206,13 +208,18 @@ export function createAudio(options = {}) {
     },
 
     // Fade out one sound's one-shots still sounding.
-    stop(name, seconds = 0.3) {
+    stop(name, seconds = 0.3, { linear = false } = {}) {
       if (SOUNDS[name].stream) { music.stop(name, seconds); return; }
       const now = ctx.currentTime;
       for (const shot of sounding[name] ?? []) {
-        shot.g.gain.setTargetAtTime(0, now, seconds / 3);
+        if (linear) {
+          shot.g.gain.cancelScheduledValues(now);
+          shot.g.gain.setValueAtTime(shot.g.gain.value, now);
+          shot.g.gain.linearRampToValueAtTime(0, now + seconds);
+        } else shot.g.gain.setTargetAtTime(0, now, seconds / 3);
         shot.src.stop(now + seconds);
-        cuttable.delete(shot);
+        // Keep fading cut-scene sounds cuttable until onended, so skip can
+        // shorten a long transition that is already in progress.
       }
       sounding[name]?.clear();
     },
@@ -222,6 +229,9 @@ export function createAudio(options = {}) {
       music.cut(seconds);
       const now = ctx.currentTime;
       for (const { src, g } of cuttable) {
+        const level = g.gain.value;
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(level, now);
         g.gain.setTargetAtTime(0, now, seconds / 3);
         src.stop(now + seconds);
       }
@@ -249,6 +259,9 @@ export function createAudio(options = {}) {
       const decoded = Object.values(buffers).flat();
       return { decodedBuffers: decoded.length,
         decodedBytes: decoded.reduce((sum, buffer) => sum + buffer.length * buffer.numberOfChannels * 4, 0),
+        beds: Object.fromEntries(Object.entries(beds).map(([name, bed]) => [name, {
+          ready: !!buffers[name], target: bed.target, gain: bed.value * bed.max, copies: bed.copies.size,
+        }])),
         streaming: music.stats() };
     },
   };

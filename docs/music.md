@@ -9,15 +9,15 @@ The score is one musical world, modern Chinese cinematic, as in a modern Chinese
 
 Each piece has its own character:
 - **Dawn** is grand and orchestral.
-- **The flight** is orchestral too. It starts as tense tremolo on the edge, goes silent as she falls, and bursts out epic as she flies up. Then it eases into an elegant theme whose motion comes from flowing strings rather than drums, with light percussion.
+- **The flight** is orchestral too. Dawn blends into the selected soft legato strings at the fall, followed by a brief musical silence on the empty ledge and the flight intro at launch. Then it eases into an elegant theme whose motion comes from flowing strings rather than drums, with light percussion.
 - **The title and ending** is a sparse solo piano with long silences and a faint pad, so the world's own ambience can breathe through it.
 
 All instrumental. 60 BPM for the quiet pieces, 96 BPM for the flight.
 
-Three pieces are made in Suno, for the moments that carry the game, and one in ElevenLabs Music:
+Three pieces are made in Suno, with a short storm cue from ElevenLabs:
 
-1. **Awakening and dawn** (Suno, done: `The Great Reveal`, `music-dawn`): from Start until she falls off the cliff edge.
-2. **The leap and flight** (Suno, done: `风过长空`, `music-flight`): the main theme, from the edge through the launch and the whole flight.
+1. **Awakening and dawn** (Suno, done: `The Great Reveal`, `music-dawn`): from Start through the fall, fading during the empty-ledge hold.
+2. **The leap and flight** (Suno, done: `风过长空`, `music-flight`): the main theme, from launch through the whole flight.
 3. **Main title and ending** (Suno, done: `Hush of a Night Sky`, `music-night`): one piece for both. It comes out of the black as she wakes under the tree at the end, and plays on into the title screen, looping for as long as the menu is up. It also plays on first load, from the first click.
 4. **The storm** (ElevenLabs Music, `music-storm` in `tools/audio-sounds.mjs`): 7.3 s, from the storm's start, building to its peak on her blow against the cliff, cut dead there.
 
@@ -25,21 +25,25 @@ No music plays from the blow to the black: the impact, the fall's build and her 
 
 ## The game's timing
 
-Measured from Start in a full playthrough:
+Opening cues measured in browser playback, approximately from Start (frame scheduling can vary slightly):
 
-| From Start | Scene | Length |
-|---|---|---|
-| title screen | She dozes under the tree at night | as long as the player waits |
-| 0.0 s | In to her face; she wakes | 6.5 s |
-| 6.5 s | The camera turns to the sun; the gong pulse at about 15 s | 9 s |
-| 15.5 s | Dawn, and back out to her getting up on the brow | 7.8 s |
-| 23.3 s | The edge rumbles as she walks to it; she steps off and drops | 9.9 s |
-| 33.2 s | Up through the cloud | 5.1 s |
-| 38.4 s | Free flight | 58.9 s |
-| 97.3 s | The storm (7.3 s) to the blow, then her fall (5.2 s) to the black | 13 s |
-| 110.3 s | She wakes under the tree; the sky; back to the title screen | about 28 s |
+| From Start | Scene / cue |
+|---|---|
+| 0.0 s | Dawn score begins; camera approaches her |
+| 6.5 s | Camera turns toward the sun |
+| 15.5 s | Dawn / gong reveal |
+| 17.8 s | Camera backs out to reveal her standing and walking |
+| 25.0 s | Camera reaches the brink composition |
+| 28.2 s | Step-off begins |
+| 29.0 s | Feet release; 03J strings begin and dawn starts its five-second fade |
+| 29.8 s | Empty ledge hold and slow dolly; the strings continue |
+| 34.0 s | Dawn finishes fading; soft D5 strings remain |
+| 35.5 s | Strings begin their 2.5-second release |
+| 38.0 s | Strings end; wind and birds carry a 0.65-second musical pause |
+| 38.65 s | Launch: flight music starts |
+| about 43.8 s | Free flight |
 
-From 23.3 s on, these are the measured times moved 1.5 s later for her walk to the edge, worked out from the sequence's timings rather than measured again. The dawn track now fades out about 2 s before it would end.
+The flight track's burst remains at track time 7.165 s, 0.8 s after the area's title starts. The storm remains at flight track time 64 s.
 
 Hold to skip jumps from anywhere in the cutscene to the flight.
 
@@ -78,7 +82,7 @@ Lyrics (structure):
 [End]
 ```
 
-In the game: `The Great Reveal` (a 3.5 min piece, in `art/audio/music/`) plays from its own start on the Start press. Its first swell peaks 15.0-15.7 s in, and the gong lands 15.56 s after Start, so it needs no cut there. `tools/process-audio.mjs` cuts it to 27 s, and `main.js` fades it out over 3 s from the edge (23.3 s), leaving room for the flight's intro.
+In the game: `The Great Reveal` (a 3.5 min piece, in `art/audio/music/`) plays from its own start on the Start press. Its first swell peaks 15.0-15.7 s in, and the gong lands 15.56 s after Start, so it needs no cut there. `tools/process-audio.mjs` keeps 35 s, preserving the closing phrase throughout the transition. `main.js` starts a five-second linear fade at foot release while the selected 03J strings enter.
 
 For a new take: cut it so the climax lands at 15 s from Start, on the gong. Leave its very low end thin there, with no gong or deep hit of its own: the game's gong is already the deepest thing in the game.
 
@@ -86,19 +90,9 @@ For a new take: cut it so the climax lands at 15 s from Start, on the gong. Leav
 
 Title: `Waking Above the Clouds - Flight`
 
-The piece follows her off the edge:
+The dawn score continues through the brink and step. Its recorded A4 phrase blends over five seconds into 03J’s D5 suspension as she leaves the ledge. The nine-second string cue fades away over its last 2.5 seconds, leaving a 0.65-second beat of wind and distant birds. On the launch, `风过长空` (in `art/audio/music/`) starts from its beginning as `music-flight`: its quiet intro, a breath, and its burst (its first sound at 7.165 s). The burst comes 0.8 s after the area's title starts, as it shows (`FLIGHT_MUSIC` in `main.js`). It runs 76 s, which covers the 64 s from the launch to the storm and its 5 s fade. The storm comes in at 1:04.0 of it, where its C major phrase has ended and it turns dark (G, then B), so the music isn't cut off mid-phrase (`CRASH_AFTER` in `main.js`). The storm eases it out over 5 s, under `music-storm`'s rise. Skipping to the flight starts it partway in, so the burst still comes with the title.
 
-| From the edge (from Start) | She | The music |
-|---|---|---|
-| 0 s (23.3 s) | Stands on the edge as it rumbles | The dawn music plays on |
-| 4.9 s (28.2 s) | Her feet leave the edge, and she falls | It eases out, and she falls in silence |
-| 8.4 s (31.7 s) | Bursts back up through the cloud | This piece from its start: its quiet intro and a breath |
-| 14.8 s (38.1 s) | The area's title | Its burst, 0.8 s later |
-| 13.6 s (36.9 s) | Free flight | Eases into the elegant theme, which loops for the rest of the flight |
-
-In the game: the dawn music plays on until she falls. As her feet leave the edge it eases out over 1 s, and she falls in silence. On the launch, `风过长空` (in `art/audio/music/`) starts from its beginning as `music-flight`: its quiet intro, a breath, and its burst (its first sound at 7.165 s). The burst comes 0.8 s after the area's title starts, as it shows (`FLIGHT_MUSIC` in `main.js`). It runs 76 s, which covers the 64 s from the launch to the storm and its 5 s fade. The storm comes in at 1:04.0 of it, where its C major phrase has ended and it turns dark (G, then B), so the music isn't cut off mid-phrase (`CRASH_AFTER` in `main.js`). The storm eases it out over 5 s, under `music-storm`'s rise. Skipping to the flight starts it partway in, so the burst still comes with the title.
-
-Only the flight's music comes from this piece. The edge keeps the dawn music, and the fall is silent.
+Only the flight's music comes from this piece. The separate 03J string cue carries the fall after dawn fades; its completed release leaves 0.65 s of musical silence before launch.
 
 The playback mix lifts the flight recording's quiet opening by about 6 dB through track time 10.5 s, then smoothly returns to its normal level at 12 s (`introLift` in `src/audio.js`). This brings the opening forward without shifting the track, its 7.165 s burst, the title cue, or the storm. Skipped playback joins the envelope at the corresponding track time; cut and stop fades remain independent.
 
@@ -177,3 +171,9 @@ The first 28 s or so is the ending: she pants for breath at first (her breathing
 ## ElevenLabs Music
 
 `music-storm` is generated, levelled and checked like the sound effects (`tools/generate-audio.mjs`, `tools/process-audio.mjs`, `tools/verify-audio.mjs`; see `docs/audio.md`).
+
+### Dawn's closing phrase and brief silence
+
+The user selected **03J — Soft legato section** from `art/audio/drop-review/`. This fresh ElevenLabs Music v2 performance was generated at D5 using an audio reference, with no local pitch correction, stretching or looping. The exact nine-second audition master ships as `music-ledge.mp3`: -30 LUFS, a gentle -3 dB treble shelf at 3.2 kHz, a five-second entrance and a 2.5-second release. Playback gain is 0.8, matching the review mix. `tools/audio-sounds.mjs` marks the asset as prepared so rebuilding audio copies the approved master unchanged.
+
+At supporting-foot release, dawn's existing A4 phrase fades linearly over five seconds while 03J enters. The audio clock then allows all nine seconds of the cue plus 0.65 seconds of musical silence before launch. Dawn keeps 35 seconds of its source so its file ending cannot truncate the crossfade. Wind and birds remain underneath. The longer empty-ledge hold retains the slow 0.08 m/s dolly and sway; flight-relative title and storm timing remain unchanged. Hold-to-skip cuts both dawn and strings.

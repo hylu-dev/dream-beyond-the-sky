@@ -192,7 +192,7 @@ export function createWindFx(scene, options = {}) {
         setOpacity(sp, alpha * smooth(0.8, 4, d));
         if (sp.opacity > 0) sp.entity.lookAt(camPos, Vec3.UP);
       }
-      if (o.onEnter && fade > 0.5 && visibility > 0.5) enterCheck(cloud, s);
+      if (o.onEnter && alpha > 0.2 && fade > 0.5 && visibility > 0.5) enterCheck(cloud, s);
     }
   }
 

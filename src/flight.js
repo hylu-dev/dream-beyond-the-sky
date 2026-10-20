@@ -57,6 +57,8 @@ export function createFlight(options = {}) {
     bankDeg: 0,
     bankVel: 0,
     targetBankDeg: 0,
+    poseRollDeg: 0, // expressive body roll; never feeds steering or collision
+    poseYawDeg: 0,
     pocket: 0, // 0 calm air .. 1 the roughest moment of a turbulence pocket
     headingDeg: o.headingDeg,
     yawDeg: o.headingDeg,
@@ -87,6 +89,7 @@ export function createFlight(options = {}) {
     s.altitude = s.baseAltitude = y;
     s.climbVel = s.climbPitchDeg = 0;
     s.lateralVel = s.bankDeg = s.bankVel = s.targetBankDeg = s.pitchDeg = s.flail = 0;
+    s.poseRollDeg = s.poseYawDeg = 0;
     s.yawDeg = headingDeg;
     s.speed = o.speed;
     s.vel.copy(s.forward).mulScalar(s.speed);
@@ -139,8 +142,8 @@ export function createFlight(options = {}) {
   // tumbling while she flails.
   function getOrientation() {
     const w = (seed, rate, deg) => fbm1(s.time * rate, seed) * deg * s.flail;
-    qYaw.setFromAxisAngle(UP, s.yawDeg + w(21, 0.9, o.flailYawDeg));
-    qRoll.setFromAxisAngle(FORWARD, s.bankDeg + s.gust.x * 2.5 + w(22, 1.3, o.flailRollDeg));
+    qYaw.setFromAxisAngle(UP, s.yawDeg + s.poseYawDeg + w(21, 0.9, o.flailYawDeg));
+    qRoll.setFromAxisAngle(FORWARD, Math.max(-82, Math.min(82, s.bankDeg + s.poseRollDeg)) + s.gust.x * 2.5 + w(22, 1.3, o.flailRollDeg));
     qPitch.setFromAxisAngle(RIGHT, o.bodyPitchDeg + s.pitchDeg + s.climbPitchDeg + s.gust.y * 2 + w(23, 1.1, o.flailPitchDeg));
     return orientation.mul2(qYaw, qRoll).mul(qPitch);
   }

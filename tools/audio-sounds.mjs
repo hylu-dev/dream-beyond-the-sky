@@ -300,8 +300,15 @@ export const SOUNDS = [
   {
     // Dawn, from Start until she falls off the edge (Suno, docs/music.md):
     // played from its own start, its swell peaks 15.0-15.7 s in, on the gong.
-    // Cut a little past her fall (28.2 s), where main.js eases it out.
-    name: 'music-dawn', music: true, file: 'music/the-great-reveal.mp3', seconds: 32, fade: 1, lufs: -18,
+    // Its natural A4 phrase carries the fall. Keep enough tail for the longer
+    // five-second blend at foot release; 03J then carries the empty ledge.
+    name: 'music-dawn', music: true, file: 'music/the-great-reveal.mp3', seconds: 35, fade: 0.25, lufs: -18,
+  },
+  {
+    // Approved review take 03J. Copy the mastered audition unchanged: its
+    // -30 LUFS level, treble shelf and 5 s / 2.5 s fades are already baked in.
+    name: 'music-ledge', music: true, file: 'drop-review/audio/03J-solo.mp3',
+    prepared: true, seconds: 9, lufs: -30,
   },
   {
     // The flight (Suno's 风过长空), from its start as she bursts up: its quiet

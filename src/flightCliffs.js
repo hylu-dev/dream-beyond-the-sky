@@ -178,6 +178,8 @@ export function createFlightCliffs(scene, assets, options = {}) {
     return ways.reduce((best, w) => (w.need / w.rate < best.need / best.rate ? w : best));
   }
 
+  const awareness = { strength: 0, side: 0 };
+  const predicted = new Vec3();
   const dodgeInput = { turn: 0, climb: 0, weight: 0 };
 
   return {
@@ -276,6 +278,25 @@ export function createFlightCliffs(scene, assets, options = {}) {
       }
       if (dodgeInput.weight > 0) dodgeFrames++;
       return dodgeInput;
+    },
+    // Pose-only awareness includes safe near-misses, not just collisions
+    // requiring dodge(). Ignore distant, hidden and already-passed rocks.
+    awareness(flight) {
+      awareness.strength = awareness.side = 0;
+      if (!root.enabled) return awareness;
+      const s = flight.state, along = s.pos.dot(s.forward);
+      predicted.copy(s.vel).mulScalar(0.7).add(s.pos);
+      for (const c of cliffs) {
+        if (c.parked) continue;
+        const b = laneBox(c, s, 0);
+        if (b.a1 < along - 3 || b.a0 > along + s.speed * 2 + 12) continue;
+        const distance = Math.min(gap(c, s.pos), gap(c, predicted));
+        const strength = smooth(26, 5, distance);
+        if (strength <= awareness.strength) continue;
+        awareness.strength = strength;
+        awareness.side = Math.sign((b.l0 + b.l1) * 0.5 - s.pos.dot(s.left));
+      }
+      return awareness;
     },
     // After the flight's step: closer than `contact` to a cliff, she slides
     // off it across or up, whichever face she is nearest, at up to `slide`

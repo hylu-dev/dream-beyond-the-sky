@@ -14,7 +14,7 @@
 // can start `from` seconds into it, easing in over `fadeIn`.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { SOUNDS } from './audio-sounds.mjs';
@@ -87,6 +87,12 @@ for (const sound of SOUNDS) {
       : (sound.use ?? [1]).map((take) => `${RAW}${sound.name}-${take}.mp3`);
   sources.forEach((src, i) => {
     const dst = `${NEXT}${sound.name}${sources.length > 1 ? `-${i + 1}` : ''}.mp3`;
+    // Approved masters retain their exact mix and envelopes on every rebuild.
+    if (sound.prepared) {
+      copyFileSync(src, dst);
+      console.log(`${dst.slice(NEXT.length).padEnd(22)} prepared master copied unchanged`);
+      return;
+    }
     // One-shots start on their first sound (a mix or a piece of music on its
     // own lead-in, cut to its `seconds`) and fade out at the end.
     const from = sound.from ?? 0;
