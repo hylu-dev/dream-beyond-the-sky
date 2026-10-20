@@ -21,3 +21,16 @@ The generated clip travels about 3.1 metres, peaks at 1.11 m/s, and slows to 0.0
 The ground height descends smoothly from the brow to the lip. The camera's approved dolly and final sun-facing rear composition are unchanged. Review the walk, settle, and drop together at normal playback speed; inspect foot contact on the slope and check that the transition never rotates the character entity.
 
 Local animations use `loadAnimation`, which fetches through the browser’s revalidated HTTP cache, validates the GLB header, and registers the parsed clip. This bypasses the engine’s persistent binary cache, which can retain an HTML fallback response for an hour if a file was temporarily missing during development.
+
+## Step off and fall
+
+The held ledge stance still uses `vanish.glb`. The step-off now uses PINOC **Cliff Dive (1)**, task `466a3ba3-240c-4aad-981f-dfe60e9217eb`, asset `2d41f7a7-8c60-4144-aa06-900144024746`. Four variations cost 4 credits. Preparation keeps the forward step, matches the first pose to the existing stance, and ends before the source's landing/rebound:
+
+```sh
+node tools/prepare-step-off.mjs /path/to/cliff-dive-source.glb
+node tools/verify-step-off.mjs
+```
+
+The prepared clip is 1.3 seconds. Its pose and travel share one explicit clock. Gravity takes over at 0.733 seconds, preserving release velocity and keeping horizontal momentum constant. The entity height compensates for the animated pelvis height so the drop is applied once. This also keeps falling after the last animation frame without a landing or an abrupt change in body position.
+
+At release, the dawn music fades over 0.18 seconds and the rumble fades quickly. The camera holds the approved composition with a smaller nod, followed by 1.9 seconds on the empty ledge before the launch. Rendered review covers the step, release, disappearance, and uninterrupted transition into flight.

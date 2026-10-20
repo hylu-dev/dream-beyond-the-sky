@@ -20,6 +20,7 @@ import { createSeatPose } from './seatPose.js';
 import { createChaseCamera } from './chaseCamera.js';
 import { createLaunchShot } from './launchShot.js';
 import { createEdgeShot } from './edgeShot.js';
+import { createStepOff } from './stepOff.js';
 import { createWindFx } from './windFx.js';
 import { createFlightScenery } from './flightScenery.js';
 import { loadCliffAssets } from './cliffAssets.js';
@@ -151,9 +152,8 @@ const BACK_OUT = {
 
 // The edge: a lip at the north-east of the brow over a drop of nearly two
 // metres. She comes to a stop on it in vanish.glb's first frame, waits
-// there quite still, and then the clip runs on from there: it takes her off
-// some 38 degrees to her right, so she stands turned that much left of the
-// drop - which puts her back to the camera.
+// there quite still, then the matching step-off clip carries her straight
+// forward into the fall, with her back to the camera.
 const BRINK = {
   x: 2.1,
   y: 1.47, // the lip under her feet
@@ -173,31 +173,19 @@ const RISE = {
   standSeconds: 1,
 };
 
-// She jumps off the edge. The engine keeps clips in place, so she moves
-// along the clip's own travel (vanish.path.json); once her feet leave the lip
-// (`lipAt`) that is where she went from, and the clip drops her off it. For
-// its last moments (`settleSeconds`) the clip slows to a stop, so her limbs
-// come to rest in its fall pose rather than freezing mid-move, while she
-// falls on the line and at the pace it left her, gathering to `fallGravity`
-// over `gatherSeconds`, out of sight below the edge. (The clip was authored on a
-// 1.17 m ledge; vanish.glb has it baked down to the lip, its pelvis
-// smoothed, and is cut before she draws back in to land.)
-// The flight heads `headingDeg`, out over the drop she jumped into and
-// toward the sun.
+// A committed forward step, then gravity takes over at toe-off. The clip
+// supplies the pose; stepOff.js carries the body without a landing or rebound.
 const EDGE = {
   headingDeg: 62,
-  lipAt: 1.7, // seconds into vanish.glb, as her feet leave it
-  fallGravity: 13, // a touch over g, so the drop is quick
-  gatherSeconds: 0.4,
-  settleSeconds: 0.6,
-  hiddenAfter: 0.6, // seconds of falling before she is below the edge
+  fallGravity: 13,
+  hiddenAfter: 0.25,
 };
 
 // After she drops out of sight the shot holds on the empty edge.
-const HOLD_SECONDS = 1.6;
+const HOLD_SECONDS = 1.9;
 
 // As she goes the camera stops dead, nodding with the stop, and holds.
-const STOP = { nodDeg: 1.8, hz: 2.5, decay: 5 };
+const STOP = { nodDeg: 0.35, hz: 2.5, decay: 5 };
 const HOLD_SWAY = VIEW.sway; // carried on from the back-out
 
 // The air: the wind's strength 0..1 at rest and on the edge, and where it
@@ -412,6 +400,7 @@ const [sanctuary, sky, character, cliffAssets] = await Promise.all([
   loadAnimation(scene, assetUrl('anims/wake.glb'), 'wake'),
   loadAnimation(scene, assetUrl('anims/getup-sunrise.glb'), 'getup'),
   loadAnimation(scene, assetUrl('anims/vanish.glb'), 'vanish'),
+  loadAnimation(scene, assetUrl('anims/step-off.glb'), 'step-off'),
   loadAnimation(scene, assetUrl('anims/flail.glb'), 'flail'),
   loadAnimation(scene, assetUrl('anims/impact.glb'), 'impact'),
   loadAnimation(scene, assetUrl('anims/limpfall.glb'), 'limpfall'),
@@ -419,8 +408,8 @@ const [sanctuary, sky, character, cliffAssets] = await Promise.all([
   loadAnimation(scene, assetUrl('anims/sigh.glb'), 'sigh'),
 ]);
 sky.entity.enabled = false;
-const [vanishPath, risePath] = await Promise.all(
-  ['vanish', 'getup-sunrise'].map(async (name) => (await fetch(assetUrl(`anims/${name}.path.json`))).json()),
+const [stepOffPath, risePath] = await Promise.all(
+  ['step-off', 'getup-sunrise'].map(async (name) => (await fetch(assetUrl(`anims/${name}.path.json`))).json()),
 );
 
 const timeOfDay = await createTimeOfDay(scene, {
@@ -608,7 +597,6 @@ function steering(dt) {
 let state = 'menu';
 let stateTime = 0;
 const pos = new Vec3();
-const vel = new Vec3();
 let headingDeg = 0;
 
 const edgeDir = forward(EDGE.headingDeg);
@@ -1074,47 +1062,12 @@ function updateHoldCamera(dt, { sway = 1 } = {}) {
   applyCamera(dt, HOLD_SWAY, sway, nod);
 }
 
-// How far vanish.glb has carried her from where it started, in the world.
-const vanishSeconds = (vanishPath.x.length - 1) * vanishPath.dt;
-// How fast the clip has her falling as it ends, and gathering pace.
-// The clip slows from `settleFrom` and comes to rest on its last frame
-// (a smoothstep's worth of time is half its length).
-const settleFrom = vanishSeconds - EDGE.settleSeconds / 2;
-// How fast the clip has her falling there, and gathering pace.
-const clipFall = (() => {
-  const y = vanishPath.y, i = Math.round(settleFrom / vanishPath.dt), h = 3 * vanishPath.dt;
-  return { speed: (y[i + 3] - y[i - 3]) / (2 * h), gravity: -(y[i + 3] - 2 * y[i] + y[i - 3]) / (h * h) };
-})();
-let clipTime = 0; // seconds into vanish.glb
-let fallTime = -1; // seconds since the clip began to slow, or -1
-let fallY = 0; // how far she has fallen since
-const fallAcross = new Vec3(); // her pace across the ground as the clip slows
-
-// Falling on: the pull gathers from the clip's own to fallGravity, and she
-// keeps to the line the clip had her on, going out as much faster as down.
-function fall(dt) {
-  const gather = smooth(0, EDGE.gatherSeconds, fallTime);
-  vel.y -= (clipFall.gravity + (EDGE.fallGravity - clipFall.gravity) * gather) * dt;
-  const k = vel.y / clipFall.speed;
-  vel.x = fallAcross.x * k;
-  vel.z = fallAcross.z * k;
-  fallTime += dt;
-}
-// How far the clip has brought her pelvis down by `t`.
-function vanishHeight(t) {
-  const f = Math.min(Math.max(t / vanishPath.dt, 0), vanishPath.y.length - 1);
-  const i = Math.min(Math.floor(f), vanishPath.y.length - 2);
-  return vanishPath.y[i] + (vanishPath.y[i + 1] - vanishPath.y[i]) * (f - i);
-}
-
-function vanishOffset(t, out) {
-  const f = Math.min(Math.max(t / vanishPath.dt, 0), vanishPath.x.length - 1);
-  const i = Math.min(Math.floor(f), vanishPath.x.length - 2);
-  const u = f - i;
-  const x = vanishPath.x[i] + (vanishPath.x[i + 1] - vanishPath.x[i]) * u;
-  const z = vanishPath.z[i] + (vanishPath.z[i + 1] - vanishPath.z[i]) * u;
-  const r = BRINK.headingDeg * DEG;
-  return out.set(Math.cos(r) * x + Math.sin(r) * z, 0, -Math.sin(r) * x + Math.cos(r) * z);
+const stepOff = createStepOff(stepOffPath, { headingDeg: BRINK.headingDeg, gravity: EDGE.fallGravity });
+let fallElapsed = 0;
+function placeStepOff(time) {
+  const frame = stepOff.frame(time);
+  character.animationTime = frame.clipTime * 30;
+  pos.copy(brink).add(frame.offset);
 }
 
 // ── The air: wind, fireflies, sun and moon ───────────────────────────────
@@ -1207,44 +1160,25 @@ function updateIslandSequence(dt) {
       updateHoldCamera(dt);
       if (stateTime >= BRINK.waitSeconds && readyToGo()) {
         rise.active = false;
-        character.playbackSpeed = 1;
+        character.playAnimation('step-off', { loop: false });
+        character.playbackSpeed = 0;
+        fallElapsed = 0;
         setState('vanish');
       }
       break;
 
-    // Off the edge, carried along the clip's own travel; the clip drops her.
+    // One clock drives both the pose and travel, including the release into gravity.
     case 'vanish': {
-      if (stateTime < settleFrom) {
-        clipTime = stateTime;
-        pos.copy(brink).add(vanishOffset(clipTime, tmpPos));
-      } else {
-        if (fallTime < 0) {
-          // From here she falls on as the clip had her going: its pace
-          // over the tenth of a second before.
-          fallAcross.copy(vanishOffset(settleFrom, tmpVec)).sub(vanishOffset(settleFrom - 0.1, tmpPos)).mulScalar(10);
-          vel.copy(fallAcross);
-          vel.y = clipFall.speed;
-          clipTime = settleFrom;
-          fallTime = fallY = 0;
-        }
-        // The clip slows to rest; her height is the fall's, less what the
-        // clip still drops her pelvis by itself.
-        const rate = 1 - smooth(settleFrom, settleFrom + EDGE.settleSeconds, stateTime);
-        character.playbackSpeed = rate;
-        clipTime = Math.min(clipTime + rate * dt, vanishSeconds);
-        fall(dt);
-        pos.x += vel.x * dt;
-        pos.z += vel.z * dt;
-        fallY += vel.y * dt;
-        pos.y = brink.y + fallY - (vanishHeight(clipTime) - vanishHeight(settleFrom));
-      }
-      updateHoldCamera(dt);
-      if (stateTime >= EDGE.lipAt && stopTime < 0) {
-        audio.stop('music-dawn', 1); // she falls in silence
-        edge.copy(brink).add(vanishOffset(EDGE.lipAt, tmpPos));
+      fallElapsed = stateTime;
+      placeStepOff(fallElapsed);
+      if (stateTime >= stepOff.releaseAt && stopTime < 0) {
+        audio.stop('music-dawn', 0.18);
+        edge.copy(brink).add(stepOff.frame(stepOff.releaseAt).offset);
         stopTime = 0;
       }
-      if (stateTime >= settleFrom + EDGE.settleSeconds) setState('drop');
+      if (stateTime >= stepOff.releaseAt) rumble *= Math.exp(-7 * dt);
+      updateHoldCamera(dt);
+      if (stateTime >= stepOff.duration) setState('drop');
       break;
     }
 
@@ -1253,8 +1187,8 @@ function updateIslandSequence(dt) {
     case 'hold': {
       rumble *= Math.exp(-2.5 * dt);
       if (pos.y > edge.y - 15) {
-        fall(dt);
-        pos.add(tmpVec.copy(vel).mulScalar(dt));
+        fallElapsed += dt;
+        placeStepOff(fallElapsed);
       }
       if (state === 'drop') {
         updateHoldCamera(dt);
@@ -1911,8 +1845,8 @@ function updateHomeward(dt) {
 
 // Where it all began, and the story set to run again from Start.
 function backToMenu() {
-  wakeTime = pulseTime = stopTime = fallTime = -1;
-  clipTime = fallY = rumble = 0;
+  wakeTime = pulseTime = stopTime = -1;
+  fallElapsed = rumble = 0;
   canvas.style.filter = '';
   setState('menu');
 }
