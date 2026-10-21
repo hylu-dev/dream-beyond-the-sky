@@ -37,6 +37,7 @@ class Param {
   setTargetAtTime(v, t, c) { this.value = v; (this.targets ??= []).push({ v, t, c }); }
   setValueAtTime(v) { this.value = v; }
   linearRampToValueAtTime(v, t) { (this.ramps ??= []).push({ v, t }); }
+  exponentialRampToValueAtTime(v, t) { (this.exponentialRamps ??= []).push({ v, t }); }
   cancelScheduledValues() { this.targets = []; }
 }
 class Node {
@@ -49,6 +50,8 @@ class FakeContext extends EventTarget {
   createMediaElementSource(media) { const n = new Node(); n.media = media; return n; }
   createGain() { const n = new Node(); n.gain = new Param(1); return n; }
   createStereoPanner() { const n = new Node(); n.pan = new Param(0); return n; }
+  createBiquadFilter() { const n = new Node(); n.frequency = new Param(); n.Q = new Param(); return n; }
+  createWaveShaper() { return new Node(); }
   createDynamicsCompressor() { const n = new Node(); n.threshold = new Param(); n.ratio = new Param(); return n; }
   createBufferSource() {
     const n = new Node();
@@ -176,6 +179,21 @@ check(ledge.stopAt === ctx.currentTime + 0.3, 'skipping cuts the ledge strings')
 check(dawn.stopAt === ctx.currentTime + 0.3, 'skipping also shortens dawn’s in-progress fade');
 audio.play('bank-whoosh');
 check(/^bank-whoosh-[123]$/.test(starts().at(-1)[1]), 'a sound with variants plays one of them');
+
+audio.beginWakeRecovery(4.5);
+audio.play('wake-pant', { cut: true });
+const pant = starts().at(-1)[3];
+const voiceFilter = pant.targets[0].targets[0];
+const [dryVoice, distortion] = voiceFilter.targets;
+const voiceOutput = dryVoice.targets[0];
+check(voiceFilter.type === 'lowpass' && voiceFilter.frequency.value === 650, 'waking breath starts muffled');
+check(voiceOutput.gain.value === 0.28 && voiceOutput.targets[0] === rest, 'only the waking voice is ducked to 28%');
+check(distortion.curve?.length === 1024 && distortion.targets[0].gain.value === 0.55, 'waking voice starts with soft distortion');
+check(voiceFilter.frequency.exponentialRamps.at(-1).v === 20000 && voiceOutput.gain.ramps.at(-1).v === 1
+  && distortion.targets[0].gain.ramps.at(-1).v === 0
+  && voiceOutput.gain.ramps.at(-1).t === ctx.currentTime + 4.5, 'breathing opens to full clarity and level over 4.5 seconds');
+audio.cut(0.1);
+check(pant.stopAt === ctx.currentTime + 0.1, 'processed breathing still cuts on skip');
 
 // Detailed media buffering, crossfades and offsets: verify-streaming-music.mjs.
 audio.play('music-flight', { offset: 5.165, cut: true });

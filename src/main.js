@@ -286,10 +286,9 @@ const SKY_GRADE = { share: 0.35, herShare: 0.85, settle: 0.3, after: 1, seconds:
 // The area's title (index.html #area) comes up this long after the flight
 // begins, once the cloud bank is behind her; its CSS animation runs the rest,
 // for `seconds` (as in index.html), and the controls come up as it goes.
-const AREA_TITLE = { after: 1.2, seconds: 6.5, controlsBefore: 0.8 };
-// The flight's music (from the launch) bursts `titleAt` seconds in, which
-// comes `titleIn` seconds after the area's title starts, as it shows.
-const FLIGHT_MUSIC = { titleAt: 7.165, titleIn: 0.8 };
+const AREA_TITLE = { after: 2.2, seconds: 6.5, controlsBefore: 0.8 };
+// Keep skipped playback on its established musical cue as the title enters later.
+const FLIGHT_MUSIC = { skipOffset: 5.165 };
 
 // After this long flying free she is caught by the storm and the crash runs
 // (crash.js) to the end; ?crash=N for N seconds instead. For testing,
@@ -316,13 +315,12 @@ let crashNow = new URLSearchParams(location.search).get('impact') === '1';
 // she is back in the doze she started in meanwhile - and comes on round
 // into the menu's frame of her; and the menu is back, to start again.
 const WAKE_UP = {
-  // [seconds, shut], eased between: opening, falling half shut, opening
-  // further, a last flicker, and open.
-  lids: [[0.15, 1], [0.5, 0.55], [0.75, 0.9], [1.15, 0.3], [1.4, 0.6], [2.1, 0]],
-  blur: { px: 10, seconds: 4.5 },
+  // Fade from black while the image gradually returns to focus.
+  open: [0.15, 4.1],
+  blur: { px: 36, seconds: 6.5 },
   // The world without colour as her eyes open, the colour coming back into
   // it from `from` to `to` seconds in.
-  gray: { from: 1.4, to: 4.6 },
+  gray: { from: 1.4, to: 6.5 },
   // On so long a lens the clip played in place - her head sinking and rising
   // 6 cm a breath, and 9 cm in a fifth of a second as she straightens at
   // 4.6 s, where it has her hips lunge forward - would carry her face up to
@@ -343,9 +341,9 @@ const WAKE_UP = {
   // As `wide`, and how far under her face it looks; pushing in `push`
   // metres until it backs out.
   end: { ahead: 2.3, side: -1.2, height: 1.15, lookDown: 0.3, fov: 30, push: 0.25 },
-  // Seconds in; she holds its last frame. Her back slides down the trunk
-  // `slide` seconds into it.
-  sigh: { at: 11.2, fade: 0.8, slide: 2.7 },
+  // Seconds in; she holds its last frame. Her back meets the trunk at
+  // `contact`, then slides down it at `slide`, seconds into the clip.
+  sigh: { at: 11.2, fade: 0.8, contact: 2.4, slide: 2.7 },
   // Out from her and round into the menu's frame, in one move that never
   // stops: from `at` seconds in, over `seconds`, easing in over `accel` and
   // out over `decel`, it curves back and round her toward `via` - degrees
@@ -374,7 +372,10 @@ const curtainEl = document.getElementById('curtain');
 const dreadEl = document.getElementById('dread');
 const lidsEl = document.getElementById('lids');
 // The black over the screen, opening from the middle: 0 open, 1 shut.
-const setLids = (v) => lidsEl.style.setProperty('--shut', v.toFixed(3));
+const setLids = (v, opacity = 1) => {
+  lidsEl.style.setProperty('--shut', v.toFixed(3));
+  lidsEl.style.opacity = opacity.toFixed(3);
+};
 const skipEl = document.getElementById('skip');
 const hintEl = document.getElementById('hint');
 const areaEl = document.getElementById('area');
@@ -1389,9 +1390,11 @@ function swapToSky() {
 
 // ?fly=1: straight into the flight, already in the sky.
 function startFlyDirect() {
-  // Started on, so its burst still comes as the area's title shows.
-  audio.play('music-flight', { cut: true, offset: FLIGHT_MUSIC.titleAt - AREA_TITLE.after - FLIGHT_MUSIC.titleIn });
+  // Preserve the music's entry cue; the title has its own later entrance.
+  audio.play('music-flight', { cut: true, offset: FLIGHT_MUSIC.skipOffset });
   flight.reset(FLY_START, EDGE.headingDeg);
+  character.setLayers([LAYERID_WORLD]);
+  onOwnLayer = true;
   character.playAnimation('idle', { loop: true });
   character.playbackSpeed = 0.6;
   flightRig.enabled = true;
@@ -1656,17 +1659,19 @@ let sighed = false;
 let dozing = false;
 let menuBack = false;
 // Her breath as she wakes, [seconds in, sound]: the gasp as her eyes open,
-// panting until she breathes in, held, and out (no sigh) as she leans back,
-// and her back down the trunk with a last soft breath out.
+// panting until she breathes in, then her back meeting the trunk and sliding
+// down, with the original soft settling breath.
 const WAKE_SOUNDS = [
   [0.15, 'wake-gasp'], [0.7, 'wake-pant'], [WAKE_UP.endAt, 'wake-breath'],
-  [WAKE_UP.sigh.at, 'wake-exhale'], [WAKE_UP.sigh.at + WAKE_UP.sigh.slide, 'wake-slide'],
+  [WAKE_UP.sigh.at + WAKE_UP.sigh.contact, 'wake-tree-contact'],
+  [WAKE_UP.sigh.at + WAKE_UP.sigh.slide, 'wake-slide'],
   [WAKE_UP.sigh.at + WAKE_UP.sigh.slide + 0.1, 'wake-settle'],
 ];
 let wakeSound = 0; // the next of them
 
 function wakeUp() {
   crash.finish();
+  audio.beginWakeRecovery(WAKE_UP.blur.seconds);
   // The island in the golden hour again, and none of the sky.
   sky.entity.enabled = false;
   for (const layer of [windFx, skyClouds, flightCliffs, flightScenery, flightAir]) layer.enabled = false;
@@ -1698,7 +1703,7 @@ function wakeUp() {
   sighed = dozing = menuBack = false;
   wakeSound = 0;
   moved = rise.active = false; // back at the tree
-  setLids(1);
+  openEyes();
   setState('woken');
 }
 
@@ -1712,11 +1717,8 @@ function breatheAwake() {
 
 // Her eyes opening, and the world slowly coming into focus.
 function openEyes() {
-  const keys = WAKE_UP.lids;
-  let i = 0;
-  while (i < keys.length - 2 && wokeTime > keys[i + 1][0]) i++;
-  const [t0, a] = keys[i], [t1, b] = keys[i + 1];
-  setLids(a + (b - a) * smooth(t0, t1, wokeTime));
+  const reveal = smooth(...WAKE_UP.open, wokeTime);
+  setLids(reveal < 1 ? 1 : 0, 1 - reveal);
   const blur = WAKE_UP.blur.px * (1 - smooth(0, WAKE_UP.blur.seconds, wokeTime));
   const gray = 1 - smooth(WAKE_UP.gray.from, WAKE_UP.gray.to, wokeTime);
   const filter = [gray > 0.005 && `grayscale(${gray.toFixed(3)})`, blur > 0.05 && `blur(${blur.toFixed(2)}px)`];
@@ -1766,6 +1768,7 @@ function updateWokenWide(dt) {
   lookAlong(a.yaw, a.pitch);
   camFov = w.fov;
   applyCamera(dt, MENU_CAMERA.sway);
+  openEyes(); // the longer recovery finishes during this shot
   settle();
   if (wokeTime >= WAKE_UP.endAt) setState('wokenEnd');
 }

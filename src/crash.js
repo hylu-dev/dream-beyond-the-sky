@@ -99,9 +99,9 @@ export const CRASH_DEFAULTS = {
     stop: 0.06, // time all but stops for this long at the blow,
     stopBy: 0.16, // and is back to full speed by this
     keep: 0, // share of her speed along her line that she keeps
-    away: 11, // m/s flung away from the rock
+    away: 7, // m/s: a short recoil, staying close to the cliff
     up: 3,
-    drag: 1.4, // 1/s, how soon the fling across dies to a fall
+    drag: 1.8, // 1/s, how soon the fling across dies to a fall
     // Her pose: the glide gives way to the blow (impact.glb) and that to
     // the limp tumble (limpfall.glb, looped). Seconds, as the blow has
     // them, slowed with it.
@@ -113,8 +113,9 @@ export const CRASH_DEFAULTS = {
     spinDeg: { roll: 640, tumble: 240, yaw: 110 }, // per second, at the blow
     spinFloor: 0.12, // share of that spin she keeps falling
     spinSeconds: 0.45,
-    flash: 0.8,
-    flashDecay: 9,
+    flash: 0.9,
+    flashDecay: 18,
+    screen: { hold: 0.06, seconds: 0.65, blurPx: 7, contrast: 1.2, bleach: 0.9, brightness: 0.3, vignette: 0.85, clear: 40 },
   },
   // Out cold, her limbs go where the air throws them: each trails the wind
   // past her as she tumbles, on a loose spring so it overshoots and flops
@@ -153,7 +154,7 @@ export const CRASH_DEFAULTS = {
     flicker: { from: 0.55, perSecond: 6, opacity: 0.6 }, // from this share of the build
     shake: 1.4, // the fall's shake grows by this share at full
   },
-  black: 0.45, // seconds of it
+  black: 2.45, // a silent beat before she wakes, two seconds longer
   camera: {
     spring: [14, 6.5], // [stiffness, damping]
     reveal: { back: 3.4, away: 1.3, up: 0.7, fov: 62, lead: 4, toRock: 0.22 },
@@ -177,6 +178,9 @@ export const CRASH_DEFAULTS = {
       away: 1.1, up: 0.25, back: 0.1, fov: 45, toRock: 0.3, aimRate: 4, speed: [5, 13], jolt: 0.8, clouds: 0.2,
       wall: { back: 1.2, out: 1.1, up: 0.3, bounce: 2.5, knock: [-1, 2, -0.3], knockAt: 0.12, knockIn: 0.07, hold: 0.2, catch: 0.8 },
     },
+    // Toss the view upward, let it drop, then recover the underlying fall.
+    impactKick: { skyElevationDeg: 24, outwardDeg: 55, rollDeg: 8, velocity: 3, gravity: 9.8, recover: [0.28, 1.35], release: [0.55, 1.35] },
+    recovery: { engage: [0.65, 0.95], release: [1.6, 2], distance: 1.8 },
     lookRate: 7,
     shake: {
       reveal: { position: 0.06, rotationDeg: 1.4, hz: 5 },
@@ -358,6 +362,9 @@ export function createCrash(deps, options = {}) {
   let fallOut = 1; // how far out of the close framing, falling
   let follow = 1; // how far it has come off the wall after her
 
+  const impactCameraRotation = new Quat(), fallingCameraRotation = new Quat();
+  const recoveryRotation = new Quat(), recoveryTarget = new Quat(), recoveryUp = new Vec3();
+
   function takeCamera() {
     const pose = chaseCamera.pose;
     view.pos.copy(pose.position);
@@ -458,6 +465,49 @@ export function createCrash(deps, options = {}) {
       n(306, 0.8) * ra * 0.6 + l(316, 0.4) * c.shake.dutchDeg * lurch + h(326) * c.hit.rollDeg,
     );
     cam.camera.fov = view.fov + imp * c.hit.fov;
+    const kick = c.impactKick;
+    if (falling && kick && sinceHit < kick.recover[1]) {
+      // Capture the thrown angle once: do not track her during the toss.
+      // The ordinary fall camera keeps running underneath for the recovery.
+      fallingCameraRotation.copy(cam.getRotation());
+      if (sinceHit === 0) {
+        // Turn only partway toward the open side, leaving the cliff face
+        // along the left of the sky shot as a reference for the impact.
+        const elevation = kick.skyElevationDeg * Math.PI / 180;
+        const outward = kick.outwardDeg * Math.PI / 180;
+        tmp.copy(s.forward).mulScalar(Math.cos(outward))
+          .add(tmp2.copy(away).mulScalar(Math.sin(outward))).mulScalar(Math.cos(elevation));
+        tmp.y = Math.sin(elevation);
+        cam.lookAt(tmp.add(cam.getPosition()));
+        cam.rotateLocal(0, 0, -o.cliff.side * kick.rollDeg);
+        impactCameraRotation.copy(cam.getRotation());
+      }
+      const recover = smooth(...kick.recover, sinceHit);
+      cam.setRotation(dq.slerp(impactCameraRotation, fallingCameraRotation, recover));
+      // A small ballistic rise and drop gives the lens its own weight.
+      // Use real time so the toss continues through the character's hit stop.
+      const lift = (kick.velocity * sinceHit - 0.5 * kick.gravity * sinceHit * sinceHit)
+        * (1 - smooth(...kick.release, sinceHit));
+      cam.setPosition(tmp.copy(cam.getPosition()).add(tmp2.set(0, lift, 0)));
+    }
+    const recovery = c.recovery;
+    if (falling && recovery && sinceHit > recovery.engage[0] && sinceHit < recovery.release[1]) {
+      // The short recoil leaves her closer to the wall-held camera. Keep
+      // the returning lens outside her tumble and catch up to her position
+      // instead of looking at the old impact point as she drops below it.
+      const weight = smooth(...recovery.engage, sinceHit) * (1 - smooth(...recovery.release, sinceHit));
+      tmp.copy(cam.getPosition()).sub(s.pos);
+      const distance = tmp.length();
+      if (distance > 1e-4 && distance < recovery.distance) {
+        tmp.mulScalar((distance + (recovery.distance - distance) * weight) / distance);
+        cam.setPosition(tmp.add(s.pos));
+      }
+      recoveryRotation.copy(cam.getRotation());
+      recoveryRotation.transformVector(UP, recoveryUp);
+      cam.lookAt(s.pos, recoveryUp);
+      recoveryTarget.copy(cam.getRotation());
+      cam.setRotation(dq.slerp(recoveryRotation, recoveryTarget, weight));
+    }
   }
 
   // ── Her, falling ────────────────────────────────────────────────────────
@@ -488,7 +538,8 @@ export function createCrash(deps, options = {}) {
     view.hitTime = 0;
     view.cut = true;
     sinceHit = 0;
-    deps.fadeEl.style.opacity = h.flash;
+    updateDread(0);
+    updateCamera(0); // the camera cut and screen pulse land with the sound
     // A puff of the cloud's dust off the rock where she struck it, and the
     // cloud she will fall into, waiting far below.
     windFx.anchorCloud(4, hitPoint, 2.6, { opacity: 0.8 });
@@ -498,8 +549,8 @@ export function createCrash(deps, options = {}) {
     windFx.anchorCloud(5, tmp, o.fall.deckRadius, { opacity: 1 });
     tmp.add(tmp2.copy(s.left).mulScalar(o.fall.deckRadius * 0.7));
     windFx.anchorCloud(6, tmp, o.fall.deckRadius * 0.8, { opacity: 1 });
-    audio.play('cliff-impact', { cut: true });
-    audio.play('fall-rise', { cut: true }); // the fall's build, cut at the black
+    audio.play('cliff-impact', { pan: -0.45 * o.cliff.side, cut: true });
+    audio.play('fall-rise', { pan: 0.2 * o.cliff.side, cut: true }); // the fall's build, cut at the black
   }
 
   // How far she falls in `seconds` from the blow, with drag.
@@ -708,7 +759,6 @@ export function createCrash(deps, options = {}) {
       reacted = true;
       reactT = t;
       audio.play('cliff-pass', { gain: 1, pan: -0.7 * o.cliff.side, cut: true });
-      audio.play('cliff-gasp', { cut: true });
     }
     const panic = reacted ? smooth(reactT, reactT + r.lead * 0.6, t) : 0;
     braceWeight = reacted ? smooth(reactT, reactT + r.seconds, t) : 0;
@@ -756,6 +806,8 @@ export function createCrash(deps, options = {}) {
   let dread = 0, beat = 0, beatPhase = 0, flicker = 0, shutT = 0;
   function updateDread(dt) {
     const d = o.dread;
+    const screen = o.hit.screen;
+    const impact = 1 - smooth(screen.hold, screen.seconds, sinceHit);
     dread = smooth(d.build[0], d.build[1], t);
     // Lub-dub: a strong beat and a softer one close behind.
     const was = beatPhase;
@@ -768,12 +820,12 @@ export function createCrash(deps, options = {}) {
     }
     const pulse = (at, w) => Math.exp(-(((beatPhase - at) / w) ** 2));
     beat = (pulse(0.06, 0.05) + 0.6 * pulse(0.28, 0.05)) * dread;
-    const clear = d.clear[0] + (d.clear[1] - d.clear[0]) * dread;
+    const clear = Math.min(d.clear[0] + (d.clear[1] - d.clear[0]) * dread, d.clear[0] + (screen.clear - d.clear[0]) * impact);
     deps.dreadEl.style.setProperty('--clear', `${clear.toFixed(1)}%`);
-    deps.dreadEl.style.opacity = (d.dark * Math.min(dread * 1.4, 1) * (0.85 + 0.15 * beat)).toFixed(3);
-    const blur = (d.blurPx[0] + (d.blurPx[1] - d.blurPx[0]) * beat) * dread;
-    deps.canvas.style.filter = `blur(${blur.toFixed(2)}px) contrast(${(1 + d.contrast * dread + 0.25 * beat).toFixed(3)}) `
-      + `saturate(${(1 - d.bleach * dread).toFixed(3)}) brightness(${(1 + 0.25 * beat).toFixed(3)})`;
+    deps.dreadEl.style.opacity = Math.max(screen.vignette * impact, d.dark * Math.min(dread * 1.4, 1) * (0.85 + 0.15 * beat)).toFixed(3);
+    const blur = (d.blurPx[0] + (d.blurPx[1] - d.blurPx[0]) * beat) * dread + screen.blurPx * impact;
+    deps.canvas.style.filter = `blur(${blur.toFixed(2)}px) contrast(${(1 + d.contrast * dread + 0.25 * beat + screen.contrast * impact).toFixed(3)}) `
+      + `saturate(${Math.max(0, 1 - d.bleach * dread - screen.bleach * impact).toFixed(3)}) brightness(${(1 + 0.25 * beat + screen.brightness * impact).toFixed(3)})`;
     // The flash of the blow dying, and white flickers late in the fall.
     const late = smooth(d.flicker.from, 1, dread);
     if (late > 0 && Math.random() < d.flicker.perSecond * late * dt) flicker = d.flicker.opacity * (0.4 + 0.6 * Math.random());

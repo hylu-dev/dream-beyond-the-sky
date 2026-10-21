@@ -27,8 +27,6 @@ const NO_MUSIC = 'No music, no melody, no voices.';
 const SCORE = ['cinematic orchestral score', 'full Western orchestra', 'D minor', 'dark and ominous', 'instrumental only', 'great production quality'];
 const UNSUNG = ['vocals', 'singing', 'choir', 'humming', 'lyrics', 'spoken word'];
 const BED = 'Seamless steady loop, no distinct events.';
-// Starts a layer on its attack rather than its first faint sound.
-const ATTACK = 'silenceremove=start_periods=1:start_threshold=-30dB:start_silence=0';
 
 export const SOUNDS = [
   // ── The island at night, and the dawn ───────────────────────────────────
@@ -171,28 +169,10 @@ export const SOUNDS = [
     text: 'The deep low rumble left after a giant impact against a mountain: a dark heavy resonance rolling out and slowly decaying, a few small stones settling faintly far off. No new hits, no music, no melody.',
   },
   {
-    // Her blow against the cliff at the end of the flight (crash.js), the
-    // hardest hit in the game, built as one blow: every layer starts on its
-    // attack, and the foley is cut short before anything in it could read
-    // as a second hit. The punch and a synthesized kick (160 Hz falling to
-    // 45) are the blow; the body thud and the stone crunch make it a body
-    // against rock, on any speaker; the trailer boom, a sub drop (55 Hz
-    // falling to 30) and the rumble rolling away are its weight.
-    name: 'cliff-impact', seconds: 4, fade: 1.5, lufs: -16,
-    mix: [[
-      ['hit-punch', 1, 0, 0, ATTACK],
-      ['lavfi', `aevalsrc='sin(2*PI*(45*t+4.6*(1-exp(-25*t))))*exp(-7*t)*(1-exp(-2000*t))':s=44100:d=1`, -4],
-      ['hit-body', 3, 3, 0, `${ATTACK},atrim=0:0.4,afade=t=out:st=0.25:d=0.15,highpass=f=90`],
-      ['impact-crack', 3, -1, 0, `${ATTACK},atrim=0:0.35,afade=t=out:st=0.2:d=0.15,highpass=f=250`],
-      ['impact-boom', 1, -12, 0, `${ATTACK},lowpass=f=180,atrim=0:2.5,afade=t=out:st=0.4:d=2.1`],
-      ['hit-tail', 2, -11, 0.05, 'lowpass=f=500,afade=t=in:d=0.08,afade=t=out:st=0.8:d=3'],
-      ['lavfi', `aevalsrc='sin(2*PI*(30*t+6.25*(1-exp(-4*t))))*exp(-2.5*t)*(1-exp(-300*t))':s=44100:d=3`, -10],
-    ]],
-    // Driven a little into a soft clip, which shaves the peaks rather than
-    // the decay: louder for its peak, and the saturation's overtones put the
-    // low end on small speakers too. A short dark space round it.
-    mixFilter: 'volume=8dB,asoftclip=type=tanh,volume=-8dB',
-    reverb: { seconds: 2, wet: 0.2 },
+    // Selected Deep canyon collision, with a modest gain and bass lift.
+    // Preserve the mastered timing and tone on every audio rebuild.
+    name: 'cliff-impact', file: 'impact-review/audio/03-solo.mp3',
+    prepared: true, seconds: 3, lufs: -19,
   },
   {
     name: 'fall-wind', layer: true, seconds: 6, takes: 3, influence: 0.6,
@@ -274,8 +254,12 @@ export const SOUNDS = [
     text: 'A young woman quietly breathes in through slightly parted lips, a calm, ordinary breath, not dramatic. Only the inhale. Breath only, no voice, no words, no sigh, no moan. Dry, close-mic, intimate, quiet room. No music.',
   },
   {
-    name: 'wake-exhale', seconds: 2.5, takes: 1, influence: 0.6, fade: 0.4,
-    text: 'A young woman breathes out slowly through her mouth, a plain, soft, unvoiced exhale of air, calm. Only the exhale. Breath only, no voice, no words, no sigh, no moan. Dry, close-mic, intimate, quiet room. No music.',
+    name: 'wake-exhale', seconds: 2.5, takes: 2, use: [2], influence: 0.65, fade: 0.25,
+    text: 'One clearly audible long breath out from a young woman after catching her breath. A natural relaxed airy mouth exhale, starting immediately and flowing continuously for two seconds, gently tapering away. Close microphone, dry intimate film foley, breath only. No inhale, words, vocal tone, moan, whistle, music or background noise.',
+  },
+  {
+    name: 'wake-tree-contact', seconds: 1.5, takes: 1, influence: 0.65, fade: 0.25,
+    text: 'A woman gently leans her clothed upper back against a solid tree trunk. One soft low padded body thump at the beginning, with a short cotton shirt rustle and tiny dry bark creak. Quiet close realistic outdoor film foley. Gentle weight settling against wood, not a collision. No sliding scrape, footsteps, voices, music, cartoon sound or repeated knocks.',
   },
   // Take 1 from this prompt; take 2 from 'A light, subtle rub of a cotton
   // shirt down rough tree bark, brief and soft.' One plays each time.

@@ -44,7 +44,7 @@ Opening cues measured in browser playback, approximately from Start (frame sched
 | 36.3 s | Launch: flight music starts |
 | about 41.4 s | Free flight |
 
-The flight track's burst remains at track time 7.165 s, 0.8 s after the area's title starts. The storm remains at flight track time 64 s.
+The flight track's burst remains at track time 7.165 s. The area title now starts one second later, about 0.2 s after that burst. The storm remains at flight track time 64 s.
 
 Hold to skip jumps from anywhere in the cutscene to the flight.
 
@@ -91,7 +91,7 @@ For a new take: cut it so the climax lands at 15 s from Start, on the gong. Leav
 
 Title: `Waking Above the Clouds - Flight`
 
-The dawn score continues through the brink and step. Its recorded A4 phrase blends over five seconds into 03J’s D5 suspension as she leaves the ledge. The seven-second string cue fades away over its last 2.5 seconds, leaving a 0.8-second beat of wind and distant birds. On the launch, `风过长空` (in `art/audio/music/`) starts from its beginning as `music-flight`: its quiet intro, a breath, and its burst (its first sound at 7.165 s). The burst comes 0.8 s after the area's title starts, as it shows (`FLIGHT_MUSIC` in `main.js`). It runs 76 s, which covers the 64 s from the launch to the storm and its 5 s fade. The storm comes in at 1:04.0 of it, where its C major phrase has ended and it turns dark (G, then B), so the music isn't cut off mid-phrase (`CRASH_AFTER` in `main.js`). The storm eases it out over 5 s, under `music-storm`'s rise. Skipping to the flight starts it partway in, so the burst still comes with the title.
+The dawn score continues through the brink and step. Its recorded A4 phrase blends over five seconds into 03J’s D5 suspension as she leaves the ledge. The seven-second string cue fades away over its last 2.5 seconds, leaving a 0.8-second beat of wind and distant birds. On the launch, `风过长空` (in `art/audio/music/`) starts from its beginning as `music-flight`: its quiet intro, a breath, and its burst (its first sound at 7.165 s). The area title starts about 0.2 s after the burst; its entrance is delayed by one second while the musical cue stays fixed. It runs 76 s, which covers the 64 s from the launch to the storm and its 5 s fade. The storm comes in at 1:04.0 of it, where its C major phrase has ended and it turns dark (G, then B), so the music isn't cut off mid-phrase (`CRASH_AFTER` in `main.js`). The storm eases it out over 5 s, under `music-storm`'s rise. Skipping to the flight starts it partway in, so the burst still comes with the title.
 
 Only the flight's music comes from this piece. The separate 03J string cue carries the fall after dawn fades; its completed release leaves 0.8 s of musical silence before launch.
 
@@ -177,4 +177,4 @@ The first 28 s or so is the ending: she pants for breath at first (her breathing
 
 The user selected **03J — Soft legato section** from `art/audio/drop-review/`. This fresh ElevenLabs Music v2 performance was generated at D5 using an audio reference, with no local pitch correction, stretching or looping. A seven-second edit ships as `music-ledge.mp3`, rebuilt from the raw performance by `tools/build-ledge-cue.mjs` at the original nine-second audition’s gain. It retains a gentle -3 dB treble shelf at 3.2 kHz, a five-second entrance and a 2.5-second release. Playback gain is 0.8, matching the review mix. `tools/audio-sounds.mjs` marks the asset as prepared so rebuilding audio copies the prepared seven-second master unchanged.
 
-Half a second before supporting-foot release, dawn's existing A4 phrase fades linearly over five seconds while 03J enters. The audio clock then allows all seven seconds of the cue plus 0.8 seconds of musical silence before launch. Dawn keeps 35 seconds of its source so its file ending cannot truncate the crossfade. Wind and birds remain underneath. The longer empty-ledge hold retains the slow 0.08 m/s dolly and sway; flight-relative title and storm timing remain unchanged. Hold-to-skip cuts both dawn and strings.
+Half a second before supporting-foot release, dawn's existing A4 phrase fades linearly over five seconds while 03J enters. The audio clock then allows all seven seconds of the cue plus 0.8 seconds of musical silence before launch. Dawn keeps 35 seconds of its source so its file ending cannot truncate the crossfade. Wind and birds remain underneath. The longer empty-ledge hold retains the slow 0.08 m/s dolly and sway; storm timing remains unchanged, while the title now enters one second later. Hold-to-skip cuts both dawn and strings.

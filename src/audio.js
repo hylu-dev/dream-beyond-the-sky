@@ -1,5 +1,6 @@
 import { assetUrl } from './assetUrl.js';
 import { createStreamingMusic } from './streamingMusic.js';
+import { createWakeAudioRecovery } from './wakeAudioRecovery.js';
 // The game's sound, in Web Audio: beds that loop under the scene at levels
 // the game sets every frame, and one-shots on its moments. The files are
 // public/assets/audio, made by tools/process-audio.mjs (prompts in
@@ -47,17 +48,17 @@ export const SOUNDS = {
   'music-flight': { stream: true, gain: 0.8, introLift: { gain: 2, hold: 10.5, end: 12 } },
   'music-storm': { gain: 1 },
   // The hardest hit in the game; it ducks everything else (see play()).
-  'cliff-impact': { gain: 1.5, duck: { to: 0.2, hold: 0.5, release: 2.5 } },
+  'cliff-impact': { gain: 1.3, duck: { to: 0.12, hold: 0.18, release: 0.9 } },
   // Her fall from it: the build to the blink, and her heart.
   'fall-rise': { gain: 1.1 },
   'heart-thump': { gain: 1 },
   // Her breath as she wakes under the tree.
-  'wake-gasp': { gain: 0.8 },
-  'wake-pant': { gain: 0.6 },
-  'wake-breath': { gain: 0.55 },
-  'wake-exhale': { gain: 0.55 },
+  'wake-gasp': { gain: 0.8, recovery: true },
+  'wake-pant': { gain: 0.6, recovery: true },
+  'wake-breath': { gain: 0.55, recovery: true },
+  'wake-tree-contact': { gain: 0.5 }, // back meeting the trunk, before the slide
   'wake-slide': { gain: 0.35, variants: 2 }, // her back down the trunk, soft
-  'wake-settle': { gain: 0.4 }, // her last breath out, sliding down
+  'wake-settle': { gain: 0.4, recovery: true }, // her last breath out, sliding down
   'wake-sigh': { gain: 0.7, variants: 5 },
   'birds-distant': { gain: 0.3, variants: 2 },
 };
@@ -83,6 +84,7 @@ export function createAudio(options = {}) {
   // Everything but a ducking one-shot goes through `rest`, for it to duck.
   const rest = ctx.createGain();
   rest.connect(master);
+  const wakeRecovery = createWakeAudioRecovery(ctx, rest);
   const music = createStreamingMusic(ctx, rest, SOUNDS, o.url);
   music.prepare('music-night');
 
@@ -159,6 +161,8 @@ export function createAudio(options = {}) {
     },
     get held() { return held; },
 
+    beginWakeRecovery(seconds = 4.5) { wakeRecovery.start(seconds); },
+
     // A bed's level, 0..1 of its gain, reached over about `seconds`.
     level(name, v, seconds = o.levelSeconds) {
       if (SOUNDS[name].stream) { music.level(name, v, seconds); return; }
@@ -191,7 +195,7 @@ export function createAudio(options = {}) {
         node = node.connect(p);
       }
       const duck = SOUNDS[name].duck;
-      node.connect(duck ? master : rest);
+      node.connect(duck ? master : SOUNDS[name].recovery ? wakeRecovery.input : rest);
       if (duck) {
         rest.gain.cancelScheduledValues(at);
         rest.gain.setTargetAtTime(duck.to, at, 0.01);
@@ -257,7 +261,7 @@ export function createAudio(options = {}) {
     // Read-only diagnostics, also exposed through window.__demo.audio.
     stats() {
       const decoded = Object.values(buffers).flat();
-      return { decodedBuffers: decoded.length,
+      return { decodedBuffers: decoded.length, wakeRecovery: wakeRecovery.stats(),
         decodedBytes: decoded.reduce((sum, buffer) => sum + buffer.length * buffer.numberOfChannels * 4, 0),
         beds: Object.fromEntries(Object.entries(beds).map(([name, bed]) => [name, {
           ready: !!buffers[name], target: bed.target, gain: bed.value * bed.max, copies: bed.copies.size,
