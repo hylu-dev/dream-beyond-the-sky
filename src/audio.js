@@ -162,6 +162,8 @@ export function createAudio(options = {}) {
     get held() { return held; },
 
     beginWakeRecovery(seconds = 4.5) { wakeRecovery.start(seconds); },
+    // How far, in metres, the camera hears her waking voice from.
+    placeWakeVoice(metres, seconds) { wakeRecovery.place(metres, seconds); },
 
     // A bed's level, 0..1 of its gain, reached over about `seconds`.
     level(name, v, seconds = o.levelSeconds) {

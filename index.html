@@ -34,6 +34,45 @@
       }
       #curtain.up { opacity: 0; }
       #curtain.quick { transition-duration: 0.4s; }
+      /* While it loads: the title, and under it a hairline that fills with
+         gold to a glowing point (--p, 0..1), set by main.js. */
+      #loading {
+        position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 0 16px; text-align: center; color: var(--paper); transition: opacity 0.9s ease;
+      }
+      #curtain.loaded #loading { opacity: 0; }
+      #loading .load-zh {
+        font: 300 clamp(24px, 3vw, 36px)/1 'Noto Serif SC', 'Shippori Mincho B1', serif;
+        letter-spacing: 0.42em; padding-left: 0.42em; color: rgba(239, 230, 210, 0.88);
+        animation: load-in 1.6s ease both;
+      }
+      #loading .load-en {
+        margin-top: 18px; font: 500 clamp(11px, 1vw, 13px)/1 'Cormorant Garamond', serif;
+        letter-spacing: 0.32em; padding-left: 0.32em; text-transform: uppercase; color: rgba(239, 230, 210, 0.6);
+        animation: load-in 1.6s ease 0.3s both;
+      }
+      #loading .load-bar {
+        position: relative; width: min(260px, 60vw); height: 1px; margin-top: 42px;
+        background: linear-gradient(to right, transparent, rgba(239, 230, 210, 0.16) 15%, rgba(239, 230, 210, 0.16) 85%, transparent);
+        animation: load-in 1.6s ease 0.5s both;
+      }
+      #loading .load-bar span {
+        position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--p, 0));
+        background: linear-gradient(to right, transparent, rgba(201, 164, 92, 0.55) 30%, var(--gold));
+      }
+      #loading .load-bar::after {
+        content: ''; position: absolute; top: 50%; left: calc(var(--p, 0) * 100%);
+        width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%;
+        background: rgb(236, 206, 140); box-shadow: 0 0 10px 3px rgba(226, 190, 118, 0.55);
+        opacity: min(1, calc(var(--p, 0) * 20));
+      }
+      #loading .load-label {
+        margin-top: 18px; font: 500 11px/1 'Cormorant Garamond', serif;
+        letter-spacing: 0.3em; padding-left: 0.3em; text-transform: uppercase; color: rgba(201, 164, 92, 0.6);
+        animation: load-in 1.6s ease 0.7s both, load-breathe 2.8s ease-in-out 2.3s infinite;
+      }
+      @keyframes load-in { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } }
+      @keyframes load-breathe { 50% { opacity: 0.45; } }
 
       /* On a phone held upright: everything waits under a night-blue sheet
          asking for it to be turned on its side. */
@@ -283,7 +322,7 @@
         .side { padding-left: 18px; gap: 18px; }
       }
       @media (prefers-reduced-motion: reduce) {
-        #rotate svg, #controls .glyph { animation: none; }
+        #rotate svg, #controls .glyph, #loading * { animation: none; }
         #grain { animation: none; }
         #area.play .area-zh, #area.play .area-en, #area.play .area-rule span { animation: none; }
         #area.play .area-rule::before, #area.play .area-rule::after { animation: none; transform: none; }
@@ -293,7 +332,14 @@
   </head>
   <body>
     <canvas id="canvas"></canvas>
-    <div id="curtain"></div>
+    <div id="curtain">
+      <div id="loading" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="load-zh" lang="zh-Hans">梦越苍穹</div>
+        <div class="load-en">Dream Beyond the Sky</div>
+        <div class="load-bar"><span></span></div>
+        <div class="load-label">Loading</div>
+      </div>
+    </div>
     <div id="rotate" role="alert">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
         <rect x="7" y="2.5" width="10" height="19" rx="1.8" /><path d="M10.5 18.5h3" />
@@ -337,7 +383,7 @@
       <span class="by-mouse">Move the mouse to steer</span><span class="by-touch">Hold where you want to fly</span>
     </div>
     <div id="fade"></div>
-    <div id="hint">Loading…</div>
+    <div id="hint"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

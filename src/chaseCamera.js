@@ -9,7 +9,8 @@ import { fbm1 } from './noise.js';
 //  - it leans with her, pushes in during a bank, and kicks its field of view
 //    as a roll starts;
 //  - in a climb or dive it drops in behind her on her line, below or above,
-//    and looks along it, up or down;
+//    and looks along it, up or down - still up (or down) when she is
+//    asked to climb (or dive) past the top (or bottom) of her air;
 //  - it shakes with the wind, much harder inside a turbulence pocket;
 //  - while she flails (flight.state.flail) it lurches with her.
 // Pass `apply: false` to only compute `pose`, e.g. to blend into it from a
@@ -80,8 +81,10 @@ export function createChaseCamera(cameraEntity, options = {}) {
     goal.x += s.left.x * lateral;
     goal.z += s.left.z * lateral;
     // On her line: as far below her (or above) as the climb's slope over
-    // its distance behind.
-    const slope = (s.climbVel ?? 0) / s.speed;
+    // its distance behind. The line is the one she is asked to fly, so held
+    // at the top (or bottom) of her air it still drops in below her and looks
+    // up (or down).
+    const slope = (s.lookClimb ?? s.climbVel ?? 0) / s.speed;
     goal.y += o.height - o.bankDrop * Math.abs(roll) - slope * dist;
     target.copy(s.forward).mulScalar(o.lookAhead).add(s.pos);
     target.y += slope * o.lookAhead * o.climbLook;

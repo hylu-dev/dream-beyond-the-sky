@@ -46,11 +46,16 @@ class Node {
 }
 const decodedNames = [];
 class FakeContext extends EventTarget {
-  constructor() { super(); this.currentTime = 0; this.state = 'suspended'; this.destination = new Node(); }
+  constructor() { super(); this.currentTime = 0; this.sampleRate = 48000; this.state = 'suspended'; this.destination = new Node(); }
   createMediaElementSource(media) { const n = new Node(); n.media = media; return n; }
   createGain() { const n = new Node(); n.gain = new Param(1); return n; }
   createStereoPanner() { const n = new Node(); n.pan = new Param(0); return n; }
-  createBiquadFilter() { const n = new Node(); n.frequency = new Param(); n.Q = new Param(); return n; }
+  createBiquadFilter() { const n = new Node(); n.frequency = new Param(); n.Q = new Param(); n.gain = new Param(); return n; }
+  createConvolver() { return new Node(); }
+  createBuffer(channels, length, sampleRate) {
+    const data = Array.from({ length: channels }, () => new Float32Array(length));
+    return { length, sampleRate, numberOfChannels: channels, getChannelData: (c) => data[c] };
+  }
   createWaveShaper() { return new Node(); }
   createDynamicsCompressor() { const n = new Node(); n.threshold = new Param(); n.ratio = new Param(); return n; }
   createBufferSource() {
@@ -187,7 +192,22 @@ const voiceFilter = pant.targets[0].targets[0];
 const [dryVoice, distortion] = voiceFilter.targets;
 const voiceOutput = dryVoice.targets[0];
 check(voiceFilter.type === 'lowpass' && voiceFilter.frequency.value === 650, 'waking breath starts muffled');
-check(voiceOutput.gain.value === 0.28 && voiceOutput.targets[0] === rest, 'only the waking voice is ducked to 28%');
+const [lowShelf] = voiceOutput.targets, [highShelf] = lowShelf.targets, [voiceLevel, tailSend] = highShelf.targets;
+check(voiceOutput.gain.value === 0.28 && voiceLevel.targets[0] === rest, 'only the waking voice is ducked to 28%');
+check(lowShelf.type === 'lowshelf' && highShelf.type === 'highshelf' && tailSend.targets[0].targets[0] === voiceLevel
+  && tailSend.targets[0].buffer?.numberOfChannels === 2, 'the waking voice is placed through shelves and a short outdoor tail');
+audio.placeWakeVoice(1.9, 0);
+const near = audio.stats().wakeRecovery.space;
+audio.placeWakeVoice(2.6, 0);
+const medium = audio.stats().wakeRecovery.space;
+audio.placeWakeVoice(8, 0);
+const far = audio.stats().wakeRecovery.space;
+check(medium.level < near.level - 0.05 && medium.highDb < near.highDb - 0.75 && medium.wet > near.wet,
+  'at the end shot’s 2.6 m her breath already sits back from the close-up');
+check(far.level < near.level * 0.6 && far.highDb < near.highDb - 5 && far.lowDb < near.lowDb && far.wet > near.wet,
+  'from the wide shot her breath is quieter, duller and further into the air than in the close-up');
+audio.placeWakeVoice(8);
+check(highShelf.gain.targets.at(-1)?.c > 0, 'the voice follows the camera smoothly, so a cut does not click');
 check(distortion.curve?.length === 1024 && distortion.targets[0].gain.value === 0.55, 'waking voice starts with soft distortion');
 check(voiceFilter.frequency.exponentialRamps.at(-1).v === 20000 && voiceOutput.gain.ramps.at(-1).v === 1
   && distortion.targets[0].gain.ramps.at(-1).v === 0

@@ -19,7 +19,7 @@ Three pieces are made in Suno, with a short storm cue from ElevenLabs:
 1. **Awakening and dawn** (Suno, done: `The Great Reveal`, `music-dawn`): from Start through the fall, fading during the empty-ledge hold.
 2. **The leap and flight** (Suno, done: `风过长空`, `music-flight`): the main theme, from launch through the whole flight.
 3. **Main title and ending** (Suno, done: `Hush of a Night Sky`, `music-night`): one piece for both. It comes out of the black as she wakes under the tree at the end, and plays on into the title screen, looping for as long as the menu is up. It also plays on first load, from the first click.
-4. **The storm** (ElevenLabs Music, `music-storm` in `tools/audio-sounds.mjs`): 7.3 s, from the storm's start, building to its peak on her blow against the cliff, cut dead there.
+4. **The storm** (ElevenLabs Music, `music-storm` in `tools/audio-sounds.mjs`): 7.3 s, from 0.35 s after the storm's start, so its crash (6.9 s into the cue) lands on her blow against the cliff (about 7.3 s into the storm), cut dead there.
 
 No music plays from the blow to the black: the impact, the fall's build and her heartbeat have it.
 

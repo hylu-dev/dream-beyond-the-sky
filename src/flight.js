@@ -52,6 +52,7 @@ export function createFlight(options = {}) {
     altitude: 0,
     lateralVel: 0,
     climbVel: 0, // m/s, + up
+    lookClimb: 0, // m/s the player is asking for, room or not; the camera looks along it
     climbPitchDeg: 0, // her nose along the climb; negative is up
     baseAltitude: 0, // where the flight started
     bankDeg: 0,
@@ -87,7 +88,7 @@ export function createFlight(options = {}) {
     setHeadingAxes();
     s.pos.set(x, y, z);
     s.altitude = s.baseAltitude = y;
-    s.climbVel = s.climbPitchDeg = 0;
+    s.climbVel = s.lookClimb = s.climbPitchDeg = 0;
     s.lateralVel = s.bankDeg = s.bankVel = s.targetBankDeg = s.pitchDeg = s.flail = 0;
     s.poseRollDeg = s.poseYawDeg = 0;
     s.yawDeg = headingDeg;
@@ -123,7 +124,9 @@ export function createFlight(options = {}) {
     const room = climb > 0 ? o.climbRange[1] - above : above - o.climbRange[0];
     const ease = Math.min(Math.max(room / o.climbSoft, 0), 1);
     const goalClimb = climb * o.maxClimb * ease * ease * (3 - 2 * ease);
-    s.climbVel += (goalClimb - s.climbVel) * (1 - Math.exp(-o.climbRate * dt));
+    const climbEase = 1 - Math.exp(-o.climbRate * dt);
+    s.climbVel += (goalClimb - s.climbVel) * climbEase;
+    s.lookClimb += (climb * o.maxClimb - s.lookClimb) * climbEase;
     s.altitude += s.climbVel * dt;
     s.climbPitchDeg = (-Math.atan2(s.climbVel, s.speed) * 180) / Math.PI;
 

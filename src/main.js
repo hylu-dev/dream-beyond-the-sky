@@ -29,6 +29,7 @@ import { createCrash } from './crash.js';
 import { createFlightAir } from './flightAir.js';
 import { createAudio } from './audio.js';
 import { fbm1 } from './noise.js';
+import { createLoadingBar } from './loadingBar.js';
 
 // ── Tunables (mock values; iterate on these) ───────────────────────────────
 
@@ -297,7 +298,9 @@ const FLIGHT_MUSIC = { skipOffset: 5.165 };
 // will meet her, so none stand in its way to be moved. 58.9 s brings the
 // storm in at 1:04.0 of the flight's music, as its phrase turns dark.
 const CRASH_AFTER = Number(new URLSearchParams(location.search).get('crash')) || 58.9;
-const CRASH = { clearMargin: 40 };
+// The blow comes about 7.3 s into the storm, and its music's crash 6.9 s
+// into the cue: `stormDelay` holds the cue back so the crash lands on the rock.
+const CRASH = { clearMargin: 40, stormDelay: 0.35 };
 let crashNow = new URLSearchParams(location.search).get('impact') === '1';
 
 // The fall was a dream. It cuts to black and she is back under the tree,
@@ -369,6 +372,9 @@ const WAKE_UP = {
 const canvas = document.getElementById('canvas');
 const fadeEl = document.getElementById('fade');
 const curtainEl = document.getElementById('curtain');
+// Each load's share of the bar, its rough size in MB.
+const loading = createLoadingBar(document.getElementById('loading'));
+const LOAD_MB = { scene: 1, realm: 16.5, character: 1.3, cliffs: 33, animation: 3, setup: 2 };
 const dreadEl = document.getElementById('dread');
 const lidsEl = document.getElementById('lids');
 // The black over the screen, opening from the middle: 0 open, 1 shut.
@@ -388,38 +394,38 @@ const startEl = document.getElementById('start');
 const audio = createAudio();
 for (const type of ['pointerdown', 'pointerup', 'keydown']) window.addEventListener(type, () => audio.unlock());
 
-const scene = await Scene.create(canvas, { fov: 50, near: 0.05, far: 5000 });
+const scene = await loading.track(Scene.create(canvas, { fov: 50, near: 0.05, far: 5000 }), LOAD_MB.scene);
 scene.start();
 
 // Both scenes are current-era SPZ (NGSP v4): +Y up, so no rotation.
 const [sanctuary, sky, character, cliffAssets] = await Promise.all([
-  Environment.load(scene, assetUrl('floating-island-realm.spz'), {
+  loading.track(Environment.load(scene, assetUrl('floating-island-realm.spz'), {
     scale: REALM_M_PER_UNIT,
     position: { x: 0, y: 1.5, z: 0 }, // floor at y = 0
-  }),
-  Environment.load(scene, assetUrl('cloud-realm.spz'), {
+  }), LOAD_MB.realm),
+  loading.track(Environment.load(scene, assetUrl('cloud-realm.spz'), {
     scale: SKY_M_PER_UNIT * SKY_SCALE,
-  }),
-  Character.load(scene, assetUrl('martial-artist.vsplat')),
-  loadCliffAssets(scene),
-  loadAnimation(scene, assetUrl('anims/idle.glb'), 'idle'),
-  loadAnimation(scene, assetUrl('anims/doze.glb'), 'doze'),
-  loadAnimation(scene, assetUrl('anims/wake.glb'), 'wake'),
-  loadAnimation(scene, assetUrl('anims/getup-sunrise.glb'), 'getup'),
-  loadAnimation(scene, assetUrl('anims/vanish.glb'), 'vanish'),
-  loadAnimation(scene, assetUrl('anims/step-off.glb'), 'step-off'),
-  loadAnimation(scene, assetUrl('anims/flail.glb'), 'flail'),
-  loadAnimation(scene, assetUrl('anims/impact.glb'), 'impact'),
-  loadAnimation(scene, assetUrl('anims/limpfall.glb'), 'limpfall'),
-  loadAnimation(scene, assetUrl('anims/breathe.glb'), 'breathe'),
-  loadAnimation(scene, assetUrl('anims/sigh.glb'), 'sigh'),
+  }), LOAD_MB.realm),
+  loading.track(Character.load(scene, assetUrl('martial-artist.vsplat')), LOAD_MB.character),
+  loading.track(loadCliffAssets(scene), LOAD_MB.cliffs),
+  loading.track(loadAnimation(scene, assetUrl('anims/idle.glb'), 'idle'), LOAD_MB.animation),
+  loading.track(loadAnimation(scene, assetUrl('anims/doze.glb'), 'doze'), LOAD_MB.animation),
+  loading.track(loadAnimation(scene, assetUrl('anims/wake.glb'), 'wake'), LOAD_MB.animation),
+  loading.track(loadAnimation(scene, assetUrl('anims/getup-sunrise.glb'), 'getup'), LOAD_MB.animation),
+  loading.track(loadAnimation(scene, assetUrl('anims/vanish.glb'), 'vanish'), LOAD_MB.animation),
+  loading.track(loadAnimation(scene, assetUrl('anims/step-off.glb'), 'step-off'), LOAD_MB.animation),
+  loading.track(loadAnimation(scene, assetUrl('anims/flail.glb'), 'flail'), LOAD_MB.animation),
+  loading.track(loadAnimation(scene, assetUrl('anims/impact.glb'), 'impact'), LOAD_MB.animation),
+  loading.track(loadAnimation(scene, assetUrl('anims/limpfall.glb'), 'limpfall'), LOAD_MB.animation),
+  loading.track(loadAnimation(scene, assetUrl('anims/breathe.glb'), 'breathe'), LOAD_MB.animation),
+  loading.track(loadAnimation(scene, assetUrl('anims/sigh.glb'), 'sigh'), LOAD_MB.animation),
 ]);
 sky.entity.enabled = false;
 const [stepOffPath, risePath] = await Promise.all(
   ['step-off', 'getup-sunrise'].map(async (name) => (await fetch(assetUrl(`anims/${name}.path.json`))).json()),
 );
 
-const timeOfDay = await createTimeOfDay(scene, {
+const timeOfDay = await loading.track(createTimeOfDay(scene, {
   environment: sanctuary,
   character,
   captureOrigin: { x: 0, y: 1.5, z: 0 },
@@ -431,7 +437,7 @@ const timeOfDay = await createTimeOfDay(scene, {
     glowIntensity: 0, // lift the night off her, but lay no colour on
     ...debugOptions(),
   },
-});
+}), LOAD_MB.setup);
 const celestial = createCelestial(scene, timeOfDay);
 const ambience = createAmbience(scene, { fireflyPools: FIREFLY_POOLS });
 const fireflyLight = await createFireflyLight(scene, character, ambience.lamps);
@@ -1619,7 +1625,7 @@ function startCrash() {
   document.body.classList.add('cinema');
   crash.start(steerInput);
   audio.stop('music-flight', 5); // easing out under the storm's rise
-  audio.play('music-storm', { cut: true }); // 7.3 s, to the blow
+  audio.play('music-storm', { cut: true, delay: CRASH.stormDelay }); // its crash on the blow
   setState('crash');
 }
 
@@ -1672,6 +1678,7 @@ let wakeSound = 0; // the next of them
 function wakeUp() {
   crash.finish();
   audio.beginWakeRecovery(WAKE_UP.blur.seconds);
+  audio.placeWakeVoice((voiceMetres = WAKE_UP.close.metres), 0); // the close-up she wakes in
   // The island in the golden hour again, and none of the sky.
   sky.entity.enabled = false;
   for (const layer of [windFx, skyClouds, flightCliffs, flightScenery, flightAir]) layer.enabled = false;
@@ -1707,7 +1714,12 @@ function wakeUp() {
   setState('woken');
 }
 
+const voiceAt = new Vec3(); // her face, near enough, for how far off her breath is heard
+let voiceMetres = 0;
 function breatheAwake() {
+  voiceAt.set(seat.x, seat.y + WAKE_UP.faceHeight, seat.z);
+  const metres = scene.cameraEntity.getPosition().distance(voiceAt);
+  if (Math.abs(metres - voiceMetres) > 0.05) audio.placeWakeVoice((voiceMetres = metres));
   while (wakeSound < WAKE_SOUNDS.length && wokeTime >= WAKE_SOUNDS[wakeSound][0]) {
     const name = WAKE_SOUNDS[wakeSound++][1];
     if (name === 'wake-breath') audio.stop('wake-pant', 0.6); // caught
@@ -1945,5 +1957,9 @@ else {
   startMenu();
   if (query.get('start') === '1') startAwakening();
 }
-// Lift the curtain once a couple of frames have drawn her posed in place.
-scene.app.once('postrender', () => scene.app.once('postrender', () => curtainEl.classList.add('up')));
+// Lift the curtain once a couple of frames have drawn her posed in place,
+// and the loading bar has run to its end.
+scene.app.once('postrender', () => scene.app.once('postrender', async () => {
+  await loading.finish();
+  curtainEl.classList.add('loaded', 'up');
+}));
