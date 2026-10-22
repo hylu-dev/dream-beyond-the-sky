@@ -342,14 +342,16 @@ const WAKE_UP = {
   wide: { ahead: 7, side: 2.2, height: 4.2, lookUp: 0.8, fov: 30, drift: 0.5 },
   endAt: 9.2, // seconds in, cut in for the deep breath
   // As `wide`, and how far under her face it looks; pushing in `push`
-  // metres until it backs out.
-  end: { ahead: 2.3, side: -1.2, height: 1.15, lookDown: 0.3, fov: 30, push: 0.25 },
+  // metres until it backs out. From this shot on her breath is heard
+  // `voiceBack` metres further off than the camera is: the shots open out,
+  // and the close-miked breaths would otherwise sit right on the mic.
+  end: { ahead: 2.3, side: -1.2, height: 1.15, lookDown: 0.3, fov: 30, push: 0.25, voiceBack: 3 },
   // Seconds in; she holds its last frame. Her step back stops against the
   // trunk at `contact`, and she drops down it from `slide` to about 3.3 s;
-  // sat, she takes one more breath through her lips, in at `breathIn` (her
-  // shoulders rising) and out at `breathOut` (falling, her lips relaxing),
-  // seconds into the clip (its pelvis, shoulders and mouth, measured).
-  sigh: { at: 11.2, fade: 0.8, contact: 2.08, slide: 2.75, breathIn: 3.6, breathOut: 4.25 },
+  // sat, she lets one more breath out through her lips at `breathOut` (her
+  // shoulders falling, her lips relaxing), seconds into the clip (its pelvis,
+  // shoulders and mouth, measured). Its breath in goes unheard.
+  sigh: { at: 11.2, fade: 0.8, contact: 2.08, slide: 2.75, breathOut: 4.25 },
   // Out from her and round into the menu's frame, in one move that never
   // stops: from `at` seconds in, over `seconds`, easing in over `accel` and
   // out over `decel`, it curves back and round her toward `via` - degrees
@@ -1679,8 +1681,7 @@ const WAKE_SOUNDS = [
   [WAKE_UP.sigh.at + WAKE_UP.sigh.contact - 0.25, 'wake-tree-contact'], // its thump is 0.25 s in
   [WAKE_UP.sigh.at + WAKE_UP.sigh.slide, 'wake-slide'],
   [WAKE_UP.sigh.at + WAKE_UP.sigh.slide + 0.1, 'wake-settle'],
-  [WAKE_UP.sigh.at + WAKE_UP.sigh.breathIn, 'wake-breath', { gain: 0.45 }],
-  [WAKE_UP.sigh.at + WAKE_UP.sigh.breathOut, 'wake-settle', { gain: 0.6 }],
+  [WAKE_UP.sigh.at + WAKE_UP.sigh.breathOut, 'wake-settle', { gain: 0.4 }],
 ];
 let wakeSound = 0; // the next of them
 
@@ -1727,7 +1728,7 @@ const voiceAt = new Vec3(); // her face, near enough, for how far off her breath
 let voiceMetres = 0;
 function breatheAwake() {
   voiceAt.set(seat.x, seat.y + WAKE_UP.faceHeight, seat.z);
-  const metres = scene.cameraEntity.getPosition().distance(voiceAt);
+  const metres = scene.cameraEntity.getPosition().distance(voiceAt) + (wokeTime >= WAKE_UP.endAt ? WAKE_UP.end.voiceBack : 0);
   if (Math.abs(metres - voiceMetres) > 0.05) audio.placeWakeVoice((voiceMetres = metres));
   while (wakeSound < WAKE_SOUNDS.length && wokeTime >= WAKE_SOUNDS[wakeSound][0]) {
     const [, name, options] = WAKE_SOUNDS[wakeSound++];
@@ -1974,5 +1975,7 @@ else {
 scene.app.once('postrender', () => scene.app.once('postrender', async () => {
   await loading.finish();
   curtainEl.classList.add('up');
+  menuEl.classList.add('unveiling');
   menuEl.classList.remove('booting');
+  curtainEl.addEventListener('transitionend', () => menuEl.classList.remove('unveiling'), { once: true });
 }));

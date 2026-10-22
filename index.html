@@ -319,6 +319,9 @@
       #menu.booting #start, #menu.booting .foot { opacity: 0; transform: translateY(8px); filter: blur(3px); transition: none; }
       #menu.booting #start { pointer-events: none; }
       #menu.booting #loading { opacity: 1; }
+      /* And stays over the curtain while it lifts, so the title never drops
+         behind the black on the way into the menu. */
+      #menu.unveiling { z-index: 4; }
       /* Coming home after the ending, the panel returns while the camera is
          still moving; Start and its hint wait until it can be pressed. */
       #menu.waiting #start, #menu.waiting .foot { opacity: 0; transform: translateY(8px); filter: blur(3px); transition: none; }
