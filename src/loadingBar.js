@@ -2,7 +2,7 @@
 // ticks off its own share - its rough size, in MB - as it finishes, and the
 // bar creeps on into what is still coming so it never sits still, without
 // ever reaching the end before the last of it is in. finish() runs it to the
-// end, then fades the screen's title and bar.
+// end; main.js then fades the bar into the menu's Start.
 
 export const LOADING_DEFAULTS = {
   creep: 0.8, // of what is still coming, at most, the bar runs ahead into
@@ -44,7 +44,7 @@ export function createLoadingBar(el, options = {}) {
       promise.then(() => (done += weight), () => {});
       return promise;
     },
-    // Fills the bar, then resolves; the curtain's `loaded` fades it all out.
+    // Fills the bar, then resolves.
     finish() {
       return new Promise((resolve) => (finishing = resolve));
     },

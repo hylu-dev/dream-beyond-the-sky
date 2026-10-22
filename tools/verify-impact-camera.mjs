@@ -19,9 +19,11 @@ function run(heading,dt,original,legacyRecoil=false){
  const fadeEl=element(),dreadEl=element(),screen=element();
  const character={armature:{entity:body,rigBoneNames:[],skeleton:{parents:[]}},stopLayer:noop,crossfadeTo:noop,setPosition:(...v)=>body.setPosition(...v),setRotation:(...v)=>body.setEulerAngles(...v)};
  const crash=createCrash({scene:{app,cameraEntity:camera},flight,character,chaseCamera,flightRig:{enabled:true,update:noop},windFx:{...cloud},skyClouds:{...cloud},flightCliffs:{keepClear:noop},cliffAssets:assets,audio:{play:(name,opts)=>sounds.push({name,...opts}),level:noop,cut:noop},fadeEl,dreadEl,canvas:screen,setLids:noop,placeFlyer:noop},{...(original?{camera:{impactKick:null,recovery:null}}:{}),...(legacyRecoil?{hit:{away:11,drag:1.4}}:{})});
- crash.start({turn:0,climb:0});const frames=[];
+ crash.start({turn:0,climb:0});const frames=[],approach=[];
  for(let time=0;time<20&&!crash.done;time+=dt){
-  crash.update(dt);const stats=crash.stats();if(crash.phase!=='fall')continue;
+  crash.update(dt);const stats=crash.stats();
+  if(crash.phase==='storm'||crash.phase==='reveal'){approach.push({time,dark:Number(dreadEl.style.opacity),white:Number(fadeEl.style.opacity??0),fov:camera.camera.fov});continue;}
+  if(crash.phase!=='fall')continue;
   camera.camera.onAppPrerender();const p=camera.camera.worldToScreen(flight.state.pos);
   assert([p.x,p.y,p.z].every(Number.isFinite),'camera projection stays finite');
   if(stats.sinceHit===0){
@@ -31,6 +33,13 @@ function run(heading,dt,original,legacyRecoil=false){
   }
   frames.push({bodyPos:flight.state.pos.clone(),forward:camera.forward.clone(),time:stats.sinceHit,pos:camera.getPosition().clone(),rotation:camera.getRotation().clone(),fov:camera.camera.fov,x:p.x/1280,y:p.y/720,z:p.z});
  }
+ // The way in: no white, and the tension climbs all the way to the blow.
+ assert(approach.every(f=>f.white===0),'no white wash before the blow');
+ const third=Math.floor(approach.length/3),mean=(a)=>a.reduce((n,f)=>n+f.dark,0)/a.length;
+ assert(approach[0].dark<.05&&approach.at(-1).dark>.45,'approach vignette builds from nothing to heavy by the blow');
+ assert(mean(approach.slice(0,third))<mean(approach.slice(third,2*third))&&mean(approach.slice(third,2*third))<mean(approach.slice(2*third)),'approach tension keeps rising');
+ const beats=sounds.slice(0,sounds.findIndex(s=>s.name==='cliff-impact')).filter(s=>s.name==='heart-thump');
+ assert.equal(beats.length,0,'no heartbeat before the blow');
  assert.equal(sounds.filter(s=>s.name==='cliff-impact').length,1);
  assert(!sounds.some(s=>s.name==='cliff-gasp'),'no pre-impact gasp');
  assert(sounds.find(s=>s.name==='cliff-impact').pan<0&&sounds.find(s=>s.name==='fall-rise').pan>0,'sound follows the impact direction');
@@ -60,4 +69,4 @@ for(const heading of [0,62,180])for(const dt of [1/30,1/60,1/120]){
   assert(f.z>0&&f.x>.1&&f.x<.9&&f.y>.1&&f.y<.9,'recovery keeps her in frame after the intentional toss');
  }
 }
-app.destroy();console.log('Passed: preserved FOV, upward toss and gravity drop, instant screen pulse, shorter recoil, safe camera recovery, underlying fall camera restored after 2 s, directional audio and no gasp, at 30/60/120 Hz across three headings.');
+app.destroy();console.log('Passed: preserved FOV, upward toss and gravity drop, instant screen pulse, shorter recoil, safe camera recovery, underlying fall camera restored after 2 s, directional audio and no gasp, a building approach with no white or heartbeat, at 30/60/120 Hz across three headings.');

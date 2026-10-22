@@ -43,6 +43,25 @@ export const RIG_DEFAULTS = {
   straightenKneeDeg: 6, // outside leg stays long
   legSwingDeg: 9, // both legs swing out of the turn
   gustArmDeg: 1.6, // arm correction per m/s^2 of sideways gust
+  // Settling into a held turn: the extra roll is a reaction to the change,
+  // not a pose she keeps. She rights herself until only this share of the
+  // physical bank still shows, then wobbles about it.
+  turnRollDeg: 27, // extra roll as a turn starts
+  settleRate: 0.6, // 1/s, how quickly she gets used to a held turn
+  releaseRate: 3, // 1/s, and to letting it go
+  levelShare: 0.45, // of the physical bank she straightens out of
+  settleWobbleDeg: 4, // unsteady roll while holding the turn
+  // Wind buffeting, at full strength (wind 1): heavy limbs shoved by the
+  // air on a loose spring, swinging past and back as she fights it. Calm
+  // air has `windFloor` of it; turbulence pockets and gusts add the rest.
+  windFloor: 0.4,
+  buffetHz: 0.75,
+  buffetArmBackDeg: 20, // arms blown back toward her hips
+  buffetArmOutDeg: 14, // flung open or pinned in
+  buffetElbowDeg: 16, // elbows buckle
+  buffetLegDeg: 14, // thighs knocked about
+  buffetKneeDeg: 18, // knees fold
+  buffetRollDeg: 3, // body knocked per m/s^2 of sideways gust
   // Climbing and diving, at the flight's full climb rate.
   diveArmsBackDeg: 34, // arms sweep back toward her hips
   diveArmsInDeg: 16, // and close in to her sides
@@ -57,7 +76,7 @@ export const RIG_DEFAULTS = {
   elbowDeg: 20,
   tuckElbowDeg: 26,
   // Flutter in the airflow, degrees in calm air; rough air multiplies it.
-  flutter: { hz: 1.15, hand: 1.8, forearm: 1, calf: 1.5, foot: 2.5, pocket: 1.5 },
+  flutter: { hz: 1.15, arm: 1.6, hand: 1.8, forearm: 1, thigh: 1.2, calf: 1.5, foot: 2.5, pocket: 3, gust: 0.3 },
   // Flailing (flight.state.flail), at full flail: arms windmilling, legs
   // kicking, body and head thrashing. Noise, not springs, so it stays wild.
   // Under a flailing clip (clipWeight) only this share of it stays on top.
@@ -78,6 +97,7 @@ export const RIG_DEFAULTS = {
     knees: [14, 5],
     legs: [8, 2.6],
     pull: [10, 2.2], // loose, so a pull-up swings the legs and they settle
+    buffet: [7, 2], // heavy: shoved limbs lag, swing past and come back
   },
 };
 
@@ -138,9 +158,20 @@ export function createFlightRig(character, options = {}) {
     guard: spring('head'),
     bodyRoll: spring('torso'),
     bodyYaw: spring('torso'),
+    windArmL: spring('buffet'),
+    windArmR: spring('buffet'),
+    windOutL: spring('buffet'),
+    windOutR: spring('buffet'),
+    windElbowL: spring('buffet'),
+    windElbowR: spring('buffet'),
+    windLegL: spring('buffet'),
+    windLegR: spring('buffet'),
+    windKneeL: spring('buffet'),
+    windKneeR: spring('buffet'),
   };
   let lastClimb = 0;
   let climbAccel = 0;
+  let heldIntent = 0; // the turn she has got used to
   const step = (c, target, dt) => {
     const [k, d] = o.springs[c.kind];
     // Integrate at a bounded step even on a slow frame; loose limbs must
@@ -159,7 +190,7 @@ export function createFlightRig(character, options = {}) {
   // This frame's flailing offsets, in degrees, added straight onto the pose.
   const fl = { outL: 0, outR: 0, swingL: 0, swingR: 0, kneeL: 0, kneeR: 0, legL: 0, legR: 0, twist: 0, head: 0 };
   // And the airflow's flutter on each part.
-  const fx = { handL: 0, handR: 0, foreL: 0, foreR: 0, calfL: 0, calfR: 0, footL: 0, footR: 0 };
+  const fx = { armL: 0, armR: 0, handL: 0, handR: 0, foreL: 0, foreR: 0, thighL: 0, thighR: 0, calfL: 0, calfR: 0, footL: 0, footR: 0 };
   // How much a hand-animated clip drives her instead of the glide pose: at 1
   // the clip plays as it is, at 0 the glide pose is fully on.
   let clipWeight = 0;
@@ -206,25 +237,25 @@ export function createFlightRig(character, options = {}) {
     rotate(pose, b.head, AXES.belly, -(ch.headLook.v * g + fl.head) * 0.6);
 
     // Left arm opens with +belly, right with -belly; both reach back with +left.
-    rotate(pose, b.upperarm.l, AXES.belly, (o.armsOutDeg + ch.armOutL.v + ch.climbOut.v) * g + fl.outL);
-    rotate(pose, b.upperarm.r, AXES.belly, -((o.armsOutDeg + ch.armOutR.v + ch.climbOut.v) * g + fl.outR));
-    rotate(pose, b.upperarm.l, AXES.left, (o.armsBackDeg + ch.armBackL.v - ch.climbArms.v) * g + breath + fl.swingL);
-    rotate(pose, b.upperarm.r, AXES.left, (o.armsBackDeg + ch.armBackR.v - ch.climbArms.v) * g + breath + fl.swingR);
+    rotate(pose, b.upperarm.l, AXES.belly, (o.armsOutDeg + ch.armOutL.v + ch.climbOut.v + ch.windOutL.v) * g + fl.outL);
+    rotate(pose, b.upperarm.r, AXES.belly, -((o.armsOutDeg + ch.armOutR.v + ch.climbOut.v + ch.windOutR.v) * g + fl.outR));
+    rotate(pose, b.upperarm.l, AXES.left, (o.armsBackDeg + ch.armBackL.v - ch.climbArms.v + ch.windArmL.v) * g + breath + fl.swingL + fx.armL);
+    rotate(pose, b.upperarm.r, AXES.left, (o.armsBackDeg + ch.armBackR.v - ch.climbArms.v + ch.windArmR.v) * g + breath + fl.swingR + fx.armR);
     // Elbows soft, the forearms toward her belly; more as the arm tucks.
     const tuckL = Math.max(-ch.armOutL.v / o.tuckInDeg, 0);
     const tuckR = Math.max(-ch.armOutR.v / o.tuckInDeg, 0);
-    rotate(pose, b.lowerarm.l, AXES.left, -clamp(o.elbowDeg + tuckL * o.tuckElbowDeg + ch.elbowL.v, 8, 100) * g + fx.foreL);
-    rotate(pose, b.lowerarm.r, AXES.left, -clamp(o.elbowDeg + tuckR * o.tuckElbowDeg + ch.elbowR.v, 8, 100) * g + fx.foreR);
+    rotate(pose, b.lowerarm.l, AXES.left, -clamp(o.elbowDeg + tuckL * o.tuckElbowDeg + ch.elbowL.v + ch.windElbowL.v, 8, 100) * g + fx.foreL);
+    rotate(pose, b.lowerarm.r, AXES.left, -clamp(o.elbowDeg + tuckR * o.tuckElbowDeg + ch.elbowR.v + ch.windElbowR.v, 8, 100) * g + fx.foreR);
     rotate(pose, b.hand.l, AXES.left, ch.handL.v * g + fx.handL);
     rotate(pose, b.hand.r, AXES.left, ch.handR.v * g + fx.handR);
 
     // Loose legs trail the turn with separate hip and knee corrections.
     rotate(pose, b.thigh.l, AXES.belly, (-ch.legSwing.v + ch.splayL.v) * g);
     rotate(pose, b.thigh.r, AXES.belly, (-ch.legSwing.v - ch.splayR.v) * g);
-    rotate(pose, b.thigh.l, AXES.left, breath * 0.3 + (ch.pull.v + ch.legL.v) * g + fl.legL);
-    rotate(pose, b.thigh.r, AXES.left, -breath * 0.3 + (ch.pull.v + ch.legL.v) * g * 0.85 + fl.legR);
-    rotate(pose, b.calf.l, AXES.left, clamp(o.kneeBendDeg + ch.kneeL.v + ch.climbKnee.v, 6, 80) * g + fl.kneeL + fx.calfL);
-    rotate(pose, b.calf.r, AXES.left, clamp(o.kneeBendDeg + ch.kneeR.v + ch.climbKnee.v, 6, 80) * g + fl.kneeR + fx.calfR);
+    rotate(pose, b.thigh.l, AXES.left, breath * 0.3 + (ch.pull.v + ch.legL.v + ch.windLegL.v) * g + fl.legL + fx.thighL);
+    rotate(pose, b.thigh.r, AXES.left, -breath * 0.3 + ((ch.pull.v + ch.legR.v) * 0.85 + ch.windLegR.v) * g + fl.legR + fx.thighR);
+    rotate(pose, b.calf.l, AXES.left, clamp(o.kneeBendDeg + ch.kneeL.v + ch.climbKnee.v + ch.windKneeL.v, 6, 80) * g + fl.kneeL + fx.calfL);
+    rotate(pose, b.calf.r, AXES.left, clamp(o.kneeBendDeg + ch.kneeR.v + ch.climbKnee.v + ch.windKneeR.v, 6, 80) * g + fl.kneeR + fx.calfR);
     rotate(pose, b.foot.l, AXES.left, o.footPointDeg * g + fx.footL);
     rotate(pose, b.foot.r, AXES.left, o.footPointDeg * g + fx.footR);
     faceGuard(pose, guardSide, clamp(ch.guard.v, 0, 1) * g, bodyQ);
@@ -235,7 +266,7 @@ export function createFlightRig(character, options = {}) {
       if (v && !enabled) {
         for (const c of Object.values(ch)) c.v = c.w = 0;
         for (const values of [fl, fx]) for (const key of Object.keys(values)) values[key] = 0;
-        time = lastClimb = climbAccel = cloudCooldown = 0;
+        time = lastClimb = climbAccel = cloudCooldown = heldIntent = 0;
         cloudAge = Infinity;
         guardSide = 1;
       }
@@ -296,6 +327,25 @@ export function createFlightRig(character, options = {}) {
       const nearL = near * Math.max(cliff?.side ?? 0, 0);
       const nearR = near * Math.max(-(cliff?.side ?? 0), 0);
       const threat = Math.max(near, cloud);
+      // She gets used to a held turn: the extra roll goes with the change in
+      // intent, and once settled she rights herself out of most of the bank.
+      // `lean` is the roll she still shows, for the posture that follows it.
+      // Letting go of a turn is quick to get used to; leaning into one is not.
+      const easing = Math.sign(intent - heldIntent) === -Math.sign(heldIntent);
+      heldIntent += (intent - heldIntent) * (1 - Math.exp(-(easing ? o.releaseRate : o.settleRate) * dt));
+      const settled = roll * clamp(1 - Math.abs(intent - heldIntent) * 2, 0, 1);
+      const lean = roll - settled * o.levelShare;
+      const wobble = fbm1(time * 0.31, 303) * o.settleWobbleDeg * Math.abs(settled) * (0.5 + unsure);
+      // Wind: rough air shoves her heavy limbs about. Each limb has its own
+      // gusty noise (mostly small, now and then a big shove) plus the shared
+      // gust, so the sides never move together; confidence eases it.
+      const lateral = s.gust.dot(s.left);
+      const wind = clamp((o.windFloor + s.pocket + s.gust.length() * 0.12) * (0.5 + unsure), 0, 1.3) * (1 - clipWeight);
+      const bt = time * o.buffetHz;
+      const shove = (seed, rate) => {
+        const x = fbm1(bt * rate, seed);
+        return Math.sign(x) * x * x * 1.6;
+      };
       // Latch the shielding side until the arm has lowered; simultaneous
       // opposite threats must never bring both arms across her face.
       if (ch.guard.v < 0.05) guardSide = near > cloud ? (cliff?.side < 0 ? -1 : 1) : cloudSide;
@@ -303,13 +353,13 @@ export function createFlightRig(character, options = {}) {
       step(ch.brace, Math.max(near, cloud), dt);
       // A large partial roll reads at chase-camera distance. She counterlooks
       // across the bank, then glances toward nearby rock as she rolls away.
-      step(ch.bodyRoll, clamp(-intent * 27 - catchTurn * 22 + (nearL - nearR) * 28 + cloudSide * cloud * 20, -42, 42), dt);
-      step(ch.bodyYaw, -roll * 10 + (nearL - nearR) * 7, dt);
+      step(ch.bodyRoll, clamp(-(intent - heldIntent) * o.turnRollDeg - catchTurn * 22 + settled * o.levelShare * max + wobble - lateral * wind * o.buffetRollDeg + (nearL - nearR) * 28 + cloudSide * cloud * 20, -42, 42), dt);
+      step(ch.bodyYaw, -lean * 10 + (nearL - nearR) * 7, dt);
       s.poseRollDeg = ch.bodyRoll.v * (1 - clipWeight);
       s.poseYawDeg = ch.bodyYaw.v * (1 - clipWeight);
-      step(ch.headLook, clamp(intent * 10 - roll * o.headLookDeg + (nearL - nearR) * 30 - cloudSide * cloud * 18, -60, 60), dt);
-      step(ch.twist, -roll * o.torsoTwistDeg + catchTurn * 8, dt);
-      step(ch.bend, roll * o.sideBendDeg - (nearL - nearR) * 3, dt);
+      step(ch.headLook, clamp(intent * 10 - lean * o.headLookDeg + (nearL - nearR) * 30 - cloudSide * cloud * 18, -60, 60), dt);
+      step(ch.twist, -lean * o.torsoTwistDeg + catchTurn * 8, dt);
+      step(ch.bend, lean * o.sideBendDeg - (nearL - nearR) * 3, dt);
       step(ch.armOutL, insideR * o.wingOutDeg - insideL * o.tuckInDeg + gust + balanceL * 4 + catchAmount * 20, dt);
       step(ch.armOutR, insideL * o.wingOutDeg - insideR * o.tuckInDeg - gust + balanceR * 4 + catchAmount * 20, dt);
       step(ch.armBackL, insideL * o.tuckBackDeg - insideR * o.wingForwardDeg + balanceL * 5, dt);
@@ -325,6 +375,17 @@ export function createFlightRig(character, options = {}) {
       step(ch.legR, -balanceR * 6 + catchTurn * 10 - Math.max(near * 18, cloud * 14), dt);
       step(ch.splayL, 3 + Math.abs(balanceL) * 3 + catchAmount * 4, dt);
       step(ch.splayR, 3 + Math.abs(balanceR) * 3 + catchAmount * 3, dt);
+      const armL = shove(401, 1), armR = shove(402, 0.87);
+      step(ch.windArmL, wind * (armL * o.buffetArmBackDeg + o.buffetArmBackDeg * 0.3 - s.gust.y * 1.5), dt);
+      step(ch.windArmR, wind * (armR * o.buffetArmBackDeg + o.buffetArmBackDeg * 0.3 - s.gust.y * 1.2), dt);
+      step(ch.windOutL, wind * (shove(403, 1.13) * o.buffetArmOutDeg + lateral * 2.5), dt);
+      step(ch.windOutR, wind * (shove(404, 0.94) * o.buffetArmOutDeg - lateral * 2.5), dt);
+      step(ch.windElbowL, wind * Math.abs(armL) * o.buffetElbowDeg, dt);
+      step(ch.windElbowR, wind * Math.abs(armR) * o.buffetElbowDeg, dt);
+      step(ch.windLegL, wind * (shove(405, 0.81) * o.buffetLegDeg - s.gust.y * 1.5), dt);
+      step(ch.windLegR, wind * (shove(406, 0.92) * o.buffetLegDeg - s.gust.y * 1.8), dt);
+      step(ch.windKneeL, wind * Math.abs(shove(407, 1.21)) * o.buffetKneeDeg, dt);
+      step(ch.windKneeR, wind * Math.abs(shove(408, 1.07)) * o.buffetKneeDeg, dt);
 
       // Climbing (+) or diving (-), as a share of the full rate; and how fast
       // that is changing, whose pull swings the legs: they lag it, toward
@@ -345,9 +406,13 @@ export function createFlightRig(character, options = {}) {
       // The airflow: quick small flutters, each part on its own noise, out
       // of step with the others; rough air and gusts shake them harder.
       const f = o.flutter;
-      const rough = (1 + s.pocket * f.pocket + s.gust.length() * 0.15) * (1 - clipWeight);
+      const rough = (1 + s.pocket * f.pocket + s.gust.length() * f.gust) * (1 - clipWeight);
       const ff = time * f.hz;
       const q = (seed, rate, deg) => fbm1(ff * rate, seed) * deg * rough;
+      fx.armL = q(209, 0.8, f.arm);
+      fx.armR = q(210, 0.75, f.arm);
+      fx.thighL = q(211, 0.7, f.thigh);
+      fx.thighR = q(212, 0.77, f.thigh);
       fx.handL = q(201, 1.7, f.hand);
       fx.handR = q(202, 1.6, f.hand);
       fx.foreL = q(203, 1.1, f.forearm);

@@ -326,7 +326,7 @@ const WAKE_UP = {
   gray: { from: 1.4, to: 6.5 },
   // On so long a lens the clip played in place - her head sinking and rising
   // 6 cm a breath, and 9 cm in a fifth of a second as she straightens at
-  // 4.6 s, where it has her hips lunge forward - would carry her face up to
+  // 4.6 s - would carry her face up to
   // a third of the frame up and down: so the camera rises and sinks with her
   // face, and looks level at it. Her head as her bones last left it is a
   // frame behind, so it goes `lead` frames on at its own pace. Across, the
@@ -344,9 +344,12 @@ const WAKE_UP = {
   // As `wide`, and how far under her face it looks; pushing in `push`
   // metres until it backs out.
   end: { ahead: 2.3, side: -1.2, height: 1.15, lookDown: 0.3, fov: 30, push: 0.25 },
-  // Seconds in; she holds its last frame. Her back meets the trunk at
-  // `contact`, then slides down it at `slide`, seconds into the clip.
-  sigh: { at: 11.2, fade: 0.8, contact: 2.4, slide: 2.7 },
+  // Seconds in; she holds its last frame. Her step back stops against the
+  // trunk at `contact`, and she drops down it from `slide` to about 3.3 s;
+  // sat, she takes one more breath through her lips, in at `breathIn` (her
+  // shoulders rising) and out at `breathOut` (falling, her lips relaxing),
+  // seconds into the clip (its pelvis, shoulders and mouth, measured).
+  sigh: { at: 11.2, fade: 0.8, contact: 2.08, slide: 2.75, breathIn: 3.6, breathOut: 4.25 },
   // Out from her and round into the menu's frame, in one move that never
   // stops: from `at` seconds in, over `seconds`, easing in over `accel` and
   // out over `decel`, it curves back and round her toward `via` - degrees
@@ -358,12 +361,15 @@ const WAKE_UP = {
   // `dozeAt`, out of frame; the bars go at `bars`. Over `night` the golden
   // hour sinks back to the menu's night: the sun down to `downTo` degrees
   // over `sinking` of it, the night deepening after. The menu comes up
-  // `menuAt` of the way.
+  // `menuAt` of the way, but Start and its hint wait (`#menu.waiting`) until
+  // it can be pressed at the end, coming in `startFade` before it so that
+  // #start's own fade-in delay (index.html) lands on that moment.
   home: {
     at: 10.6, seconds: 18, accel: 2, decel: 4.5,
     via: { angle: 0, radius: 3.6, height: 0.6, fov: 46 },
     frame: [2.6, 4.4], away: { deg: -65, pitchDeg: 6, turn: [5, 9.5] }, back: [8.5, 18],
     dozeAt: 9, bars: 9.5, night: [9.5, 15.5], downTo: -12, sinking: 0.65, menuAt: 0.8,
+    startFade: 1.4,
   },
 };
 
@@ -1664,14 +1670,17 @@ let faceLastY = 0; // as her bones last left it
 let sighed = false;
 let dozing = false;
 let menuBack = false;
-// Her breath as she wakes, [seconds in, sound]: the gasp as her eyes open,
-// panting until she breathes in, then her back meeting the trunk and sliding
-// down, with the original soft settling breath.
+// Her breath as she wakes, [seconds in, sound, play options]: the gasp as
+// her eyes open, panting until she breathes in, then her back meeting the
+// trunk and sliding down, with the original soft settling breath, and once
+// sat one smaller, quieter breath in, and out through her nose.
 const WAKE_SOUNDS = [
   [0.15, 'wake-gasp'], [0.7, 'wake-pant'], [WAKE_UP.endAt, 'wake-breath'],
-  [WAKE_UP.sigh.at + WAKE_UP.sigh.contact, 'wake-tree-contact'],
+  [WAKE_UP.sigh.at + WAKE_UP.sigh.contact - 0.25, 'wake-tree-contact'], // its thump is 0.25 s in
   [WAKE_UP.sigh.at + WAKE_UP.sigh.slide, 'wake-slide'],
   [WAKE_UP.sigh.at + WAKE_UP.sigh.slide + 0.1, 'wake-settle'],
+  [WAKE_UP.sigh.at + WAKE_UP.sigh.breathIn, 'wake-breath', { gain: 0.45 }],
+  [WAKE_UP.sigh.at + WAKE_UP.sigh.breathOut, 'wake-settle', { gain: 0.6 }],
 ];
 let wakeSound = 0; // the next of them
 
@@ -1721,9 +1730,9 @@ function breatheAwake() {
   const metres = scene.cameraEntity.getPosition().distance(voiceAt);
   if (Math.abs(metres - voiceMetres) > 0.05) audio.placeWakeVoice((voiceMetres = metres));
   while (wakeSound < WAKE_SOUNDS.length && wokeTime >= WAKE_SOUNDS[wakeSound][0]) {
-    const name = WAKE_SOUNDS[wakeSound++][1];
+    const [, name, options] = WAKE_SOUNDS[wakeSound++];
     if (name === 'wake-breath') audio.stop('wake-pant', 0.6); // caught
-    audio.play(name, { cut: true });
+    audio.play(name, { ...options, cut: true });
   }
 }
 
@@ -1884,8 +1893,10 @@ function updateHomeward(dt) {
   setGlow(SEAT.glow * smoother(x));
   if (!menuBack && s >= h.menuAt) {
     menuBack = true;
+    menuEl.classList.add('waiting');
     showMenu();
   }
+  if (t >= h.seconds - h.startFade) menuEl.classList.remove('waiting');
   if (t >= h.seconds) backToMenu();
 }
 
@@ -1958,8 +1969,10 @@ else {
   if (query.get('start') === '1') startAwakening();
 }
 // Lift the curtain once a couple of frames have drawn her posed in place,
-// and the loading bar has run to its end.
+// and the loading bar has run to its end. The menu's title has stood over
+// the curtain all along; now its bar gives way to Start.
 scene.app.once('postrender', () => scene.app.once('postrender', async () => {
   await loading.finish();
-  curtainEl.classList.add('loaded', 'up');
+  curtainEl.classList.add('up');
+  menuEl.classList.remove('booting');
 }));

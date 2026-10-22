@@ -81,6 +81,11 @@ export const SOUNDS = [
     name: 'gong-shimmer', layer: true, seconds: 8, takes: 2, influence: 0.5,
     text: 'Bowed bronze gong shimmer: a high glassy metallic singing tone rising and swelling, airy and ethereal, then fading slowly. No music, no melody.',
   },
+  // A muted bass undertone to sit under the pulse's gong (2026-10-22).
+  {
+    name: 'pulse-bass', layer: true, seconds: 8, takes: 3, influence: 0.6,
+    text: 'A deep, muted orchestral bass undertone: a section of double basses and low cellos softly bowing one long sustained low D together, dark, warm and velvety, swelling in gently then fading slowly, as if heard through a wall. A single held note. No melody, no percussion, no hit, no other instruments.',
+  },
   {
     name: 'gong-boom', layer: true, seconds: 10, takes: 3, influence: 0.55,
     text: 'Massive cinematic deep boom: an enormous low bronze bell toll and a giant gong struck together, a huge sub-bass impact and a long dark resonant swell rolling out across a vast cavernous space. Monumental, ominous and awe-inspiring. Single hit. No music, no melody.',
@@ -90,21 +95,19 @@ export const SOUNDS = [
     text: 'One enormous ancient temple bell tolling very low and slow: a deep dark bronze bong with a heavy hum and long resonant decay, heard from inside a vast stone hall. Single toll. No music, no melody.',
   },
   {
-    // Struck at once, as the ring leaves the sun, and deep as a cathedral: a
-    // huge boom and its bloom, a temple bell's toll pitched down for the
-    // bronze, a breath of tam-tam, and a sub that drops from 70 to 38 Hz
-    // (with its octave, so small speakers carry it), under a low pass and a
-    // long dark reverb.
-    name: 'pulse', seconds: 14, fade: 3, lufs: -12,
-    mix: [[
-      ['gong-boom', 1, 0, 0, 'bass=g=4:f=50'],
-      ['gong-boom', 2, -3, 0],
-      ['gong-toll', 2, -5, 0, 'asetrate=44100*0.8,aresample=44100'],
-      ['gong-tamtam', 1, -12, 0, 'asetrate=44100*0.75,aresample=44100'],
-      ['lavfi', `aevalsrc='(sin(2*PI*(38*t+10.7*(1-exp(-3*t))))+0.35*sin(4*PI*(38*t+10.7*(1-exp(-3*t)))))*exp(-0.45*t)*(1-exp(-400*t))':s=44100:d=9`, -1],
-    ]],
-    mixFilter: 'lowpass=f=1000,lowpass=f=1000,bass=g=3:f=55',
-    reverb: { seconds: 7, wet: 0.45 },
+    // Chosen in art/audio/pulse-review (06, Muted deep boom, 2026-10-22):
+    // the gong below, muffled and swelling in, under a soft felt thump, a
+    // clean sub dropping from 80 Hz to D and dying away over two seconds,
+    // and the bowed bass undertone (pulse-bass). Rendered at full length by
+    // `node tools/build-pulse-review.mjs --install`; kept as it is on every
+    // rebuild. The gong itself was this recipe, now frozen as
+    // pulse-review/raw/gong.mp3: struck at once, as the ring leaves the sun,
+    // and deep as a cathedral: a huge boom and its bloom, a temple bell's
+    // toll pitched down for the bronze, a breath of tam-tam, and a sub that
+    // drops from 70 to 38 Hz (with its octave, so small speakers carry it),
+    // under a low pass and a long dark reverb.
+    name: 'pulse', file: 'pulse-review/audio/06-game.mp3',
+    prepared: true, seconds: 14, lufs: -12,
   },
   {
     name: 'launch', seconds: 4, takes: 3, use: [1], fade: 0.4,
@@ -257,15 +260,25 @@ export const SOUNDS = [
     name: 'wake-exhale', seconds: 2.5, takes: 2, use: [2], influence: 0.65, fade: 0.25,
     text: 'One clearly audible long breath out from a young woman after catching her breath. A natural relaxed airy mouth exhale, starting immediately and flowing continuously for two seconds, gently tapering away. Close microphone, dry intimate film foley, breath only. No inhale, words, vocal tone, moan, whistle, music or background noise.',
   },
+  // Only its first thump (0.25 s in): the take knocks again at 0.7 s, which
+  // landed in the middle of her slide.
   {
-    name: 'wake-tree-contact', seconds: 1.5, takes: 1, influence: 0.65, fade: 0.25,
+    name: 'wake-tree-contact', seconds: 1.5, takes: 1, influence: 0.65, fade: 0.15,
+    mix: [[['wake-tree-contact', 1, 0, 0, 'atrim=0:0.55']]],
     text: 'A woman gently leans her clothed upper back against a solid tree trunk. One soft low padded body thump at the beginning, with a short cotton shirt rustle and tiny dry bark creak. Quiet close realistic outdoor film foley. Gentle weight settling against wood, not a collision. No sliding scrape, footsteps, voices, music, cartoon sound or repeated knocks.',
   },
-  // Take 1 from this prompt; take 2 from 'A light, subtle rub of a cotton
-  // shirt down rough tree bark, brief and soft.' One plays each time.
+  // Take 1 from "A person's back in a cotton shirt sliding slowly down a
+  // rough tree trunk: a soft scrape of fabric against bark, settling at the
+  // bottom. Close foley, quiet outdoors, no voice, no music." (1.5 s); take
+  // 2 from 'A light, subtle rub of a cotton shirt down rough tree bark,
+  // brief and soft.' Both were very quiet takes, hissy once brought up to
+  // level. Takes 3-6 from `text` (2026-10-22), one second, each a single
+  // rub of about half a second, the length of her drop down the trunk, from
+  // a take 15-20 dB louder; 3 and 6 are the warmest and least hissy. One
+  // plays each time.
   {
-    name: 'wake-slide', seconds: 1.5, takes: 2, use: [1, 2], influence: 0.6, fade: 0.3,
-    text: "A person's back in a cotton shirt sliding slowly down a rough tree trunk: a soft scrape of fabric against bark, settling at the bottom. Close foley, quiet outdoors, no voice, no music.",
+    name: 'wake-slide', seconds: 1, takes: 6, use: [3, 6], influence: 0.7, fade: 0.2,
+    text: 'High-quality close-mic film foley, clean and full-bodied: a woman in a soft cotton shirt slides her back down a rough tree trunk in one smooth half-second motion, a continuous warm fabric-on-bark rub with a faint dry crackle of bark, easing to a stop as she settles to the ground. Natural and intimate, no hiss, no background noise. No voice, no breathing, no knocks, no footsteps, no music.',
   },
   // Her last breath out as she slides down the trunk.
   {

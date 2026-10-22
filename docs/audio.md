@@ -17,7 +17,7 @@ Beds loop under the scene, at a level from 0 to 1 that the game sets every frame
 | `ui-hover`, `ui-start` | one-shot | Pointer over Start; Start pressed |
 | `approach-swell` | one-shot | The camera moving in on her face |
 | `turn-swell` | one-shot | The camera rising to the sunrise |
-| `pulse` | one-shot | The pulse of light: a monumental deep gong struck as the ring leaves the sun. A huge boom and its bloom, a temple bell's toll pitched down for the bronze, a breath of tam-tam, and a synthesized sub dropping from 70 to 38 Hz (with its octave, so small speakers carry it), under a 1 kHz low pass and a 7 s dark convolution reverb, 14 s in all |
+| `pulse` | one-shot | The pulse of light, chosen in `art/audio/pulse-review` (06, Muted deep boom): the previous deep gong (a huge boom and its bloom, a temple bell's toll pitched down, a breath of tam-tam and a synthesized sub dropping from 70 to 38 Hz, under a 1 kHz low pass and a 7 s dark reverb) muffled and swelling in as the body and tail, under a soft felt thump, a clean synthesized sub dropping from 80 Hz to D (36.7 Hz) and dying away over two seconds, and a muted bowed double-bass undertone. A prepared 14 s master from `tools/build-pulse-review.mjs --install` |
 | `launch` | one-shot | She bursts back up flying |
 | `cloud-pass` | one-shot | Through the cloud bank, peaking as the camera crosses its middle (the scene swap) |
 | `area-reveal` | one-shot | The area title |

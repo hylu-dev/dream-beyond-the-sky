@@ -18,13 +18,24 @@ for(let i=0;i<8;i++){ch=a.tick(1,{uncertainty:.6});asymmetry=Math.max(asymmetry,
 assert(asymmetry>3,'calm glide retains uneven balance adjustments over time');
 a.flight.state.targetBankDeg=-38;ch=a.tick(.3,{uncertainty:1});
 assert(ch.elbowL>2&&ch.elbowR>2,'a new turn catches balance with both elbows');
-a.flight.state.bankDeg=-38;ch=a.tick(2);
-assert(ch.kneeL>ch.kneeR+10,'inside knee bends while outside leg trails');
+a.flight.state.bankDeg=-38;ch=a.tick(.6);
 assert(ch.bodyRoll < -20 && ch.headLook < -25, 'left bank visibly rolls the body left while looking right');
+ch=a.tick(4.4);
+assert(ch.kneeL>ch.kneeR+10,'inside knee bends while outside leg trails');
+assert(ch.bodyRoll>5&&Math.abs(-38+ch.bodyRoll)<26&&ch.headLook<-10,'a held left bank straightens back out, keeping some lean and counterlook');
 const left=ch.legSwing;a.flight.state.targetBankDeg=38;a.flight.state.bankDeg=38;ch=a.tick(1/60);
 assert(Math.abs(ch.legSwing-left)<1,'legs do not snap across on a turn reversal');
-ch=a.tick(4);assert(ch.legSwing<0&&ch.kneeR>ch.kneeL+10,'opposite turn settles to the opposite pose');
-assert(ch.bodyRoll > 20 && ch.headLook > 25, 'right bank mirrors the partial roll and counterlook');
+ch=a.tick(.6);assert(ch.bodyRoll > 20 && ch.headLook > 25, 'right bank mirrors the partial roll and counterlook');
+ch=a.tick(4.4);assert(ch.legSwing<0&&ch.kneeR>ch.kneeL+10,'opposite turn settles to the opposite pose');
+assert(ch.bodyRoll<-5&&Math.abs(38+ch.bodyRoll)<26&&ch.headLook>10,'a held right bank straightens back out too');
+// Rough air shoves her heavy limbs about, unevenly; calm air barely does.
+const spread=(rough)=>{const w=setup(),s=w.flight.state;let lo=Infinity,hi=-Infinity,uneven=0;
+ for(let i=0;i<480;i++){s.pocket=rough;s.gust.set(rough*3*Math.sin(i/40),rough*2*Math.cos(i/55),0);const c=w.tick(1/60,{uncertainty:.6});
+  lo=Math.min(lo,c.windArmL,c.windLegL);hi=Math.max(hi,c.windArmL,c.windLegL);uneven=Math.max(uneven,Math.abs(c.windArmL-c.windArmR)+Math.abs(c.windKneeL-c.windKneeR));}
+ return {range:hi-lo,uneven};};
+const calm=spread(0),rough=spread(1);
+assert(rough.range>2.5*calm.range&&rough.range>20,'turbulence buffets arms and legs far harder than calm air');
+assert(rough.uneven>8,'buffeting moves each side on its own');
 // Expressive rolls change the pose, not the flight path, and cannot spin.
 const physical=createFlight({turbulence:0}),expressive=createFlight({turbulence:0});
 physical.reset(new Vec3(0,40,0));expressive.reset(new Vec3(0,40,0));
@@ -95,4 +106,4 @@ assert(nearby.state.pos.equals(before),'pose awareness never moves the player');
 nearby.state.pos.z=60;assert.equal(cliffs.awareness(nearby).strength,0,'passed cliffs release the protective pose');
 nearby.state.pos.z=32;cliffs.enabled=false;assert.equal(cliffs.awareness(nearby).strength,0,'hidden scenery does not affect the pose');
 app.destroy();
-console.log('Passed: persistent balance, turn catch and delayed legs, side-specific cloud/cliff reactions, recovery, slow-frame stability, finite normalized poses, restart reset.');
+console.log('Passed: persistent balance, turn catch and delayed legs, held-turn straightening, wind buffeting, side-specific cloud/cliff reactions, recovery, slow-frame stability, finite normalized poses, restart reset.');

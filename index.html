@@ -34,31 +34,24 @@
       }
       #curtain.up { opacity: 0; }
       #curtain.quick { transition-duration: 0.4s; }
-      /* While it loads: the title, and under it a hairline that fills with
-         gold to a glowing point (--p, 0..1), set by main.js. */
+      /* While it loads, the title is the menu's own (#menu.booting, below):
+         and where Start will be, a hairline that fills with gold to a glowing
+         point (--p, 0..1), set by main.js. */
       #loading {
-        position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        padding: 0 16px; text-align: center; color: var(--paper); transition: opacity 0.9s ease;
+        position: absolute; left: 0; top: 0; bottom: 0; width: min(180px, 40vw);
+        display: flex; flex-direction: column; justify-content: center; align-items: flex-start; pointer-events: none;
       }
-      #curtain.loaded #loading { opacity: 0; }
-      #loading .load-zh {
-        font: 300 clamp(24px, 3vw, 36px)/1 'Noto Serif SC', 'Shippori Mincho B1', serif;
-        letter-spacing: 0.42em; padding-left: 0.42em; color: rgba(239, 230, 210, 0.88);
-        animation: load-in 1.6s ease both;
-      }
-      #loading .load-en {
-        margin-top: 18px; font: 500 clamp(11px, 1vw, 13px)/1 'Cormorant Garamond', serif;
-        letter-spacing: 0.32em; padding-left: 0.32em; text-transform: uppercase; color: rgba(239, 230, 210, 0.6);
-        animation: load-in 1.6s ease 0.3s both;
-      }
+      /* Over the menu's own rules for the pieces of .actions: shown only
+         while it loads, never when the menu comes back. */
+      #menu #loading { opacity: 0; transform: none; filter: none; transition: opacity 0.9s ease; }
       #loading .load-bar {
-        position: relative; width: min(260px, 60vw); height: 1px; margin-top: 42px;
-        background: linear-gradient(to right, transparent, rgba(239, 230, 210, 0.16) 15%, rgba(239, 230, 210, 0.16) 85%, transparent);
-        animation: load-in 1.6s ease 0.5s both;
+        position: relative; width: 100%; height: 1px;
+        background: linear-gradient(to right, rgba(239, 230, 210, 0.16), rgba(239, 230, 210, 0.16) 80%, transparent);
+        animation: load-in 1.6s ease 0.7s both;
       }
       #loading .load-bar span {
         position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--p, 0));
-        background: linear-gradient(to right, transparent, rgba(201, 164, 92, 0.55) 30%, var(--gold));
+        background: linear-gradient(to right, rgba(201, 164, 92, 0.35), var(--gold));
       }
       #loading .load-bar::after {
         content: ''; position: absolute; top: 50%; left: calc(var(--p, 0) * 100%);
@@ -67,9 +60,9 @@
         opacity: min(1, calc(var(--p, 0) * 20));
       }
       #loading .load-label {
-        margin-top: 18px; font: 500 11px/1 'Cormorant Garamond', serif;
-        letter-spacing: 0.3em; padding-left: 0.3em; text-transform: uppercase; color: rgba(201, 164, 92, 0.6);
-        animation: load-in 1.6s ease 0.7s both, load-breathe 2.8s ease-in-out 2.3s infinite;
+        margin-top: 14px; font: 500 11px/1 'Cormorant Garamond', serif;
+        letter-spacing: 0.3em; text-transform: uppercase; color: rgba(201, 164, 92, 0.6);
+        animation: load-in 1.6s ease 0.9s both, load-breathe 2.8s ease-in-out 2.5s infinite;
       }
       @keyframes load-in { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } }
       @keyframes load-breathe { 50% { opacity: 0.45; } }
@@ -269,7 +262,7 @@
         content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 1px;
         background: linear-gradient(to bottom, transparent, rgba(201, 164, 92, 0.4) 18%, rgba(201, 164, 92, 0.4) 82%, transparent);
       }
-      .actions { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+      .actions { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
       .title-en {
         font: 500 clamp(12px, 1.05vw, 15px)/2 'Cormorant Garamond', serif;
         letter-spacing: 0.32em; text-transform: uppercase; color: rgba(239, 230, 210, 0.72);
@@ -315,6 +308,21 @@
       #menu.show .foot { transition-delay: 1.9s; }
       /* On Start the panel fades out whole. */
       #menu.leaving .panel > *, #menu.leaving .side > *, #menu.leaving .actions > * { opacity: 1; transform: none; filter: none; }
+      /* Loading: the panel shows over the black curtain from the first frame,
+         its title coming in as the loading screen's; Start and its hint wait
+         under the bar. Once loaded only the bar gives way to Start - the
+         title never leaves, and the scene comes up behind it. */
+      #menu.booting { z-index: 4; opacity: 1; visibility: visible; transition: none; }
+      #menu.booting .title-v, #menu.booting .side, #menu.booting .title-en { opacity: 1; transform: none; filter: none; transition: none; animation: load-in 1.6s ease both; }
+      #menu.booting .side { animation-delay: 0.3s; }
+      #menu.booting .title-en { animation-delay: 0.5s; }
+      #menu.booting #start, #menu.booting .foot { opacity: 0; transform: translateY(8px); filter: blur(3px); transition: none; }
+      #menu.booting #start { pointer-events: none; }
+      #menu.booting #loading { opacity: 1; }
+      /* Coming home after the ending, the panel returns while the camera is
+         still moving; Start and its hint wait until it can be pressed. */
+      #menu.waiting #start, #menu.waiting .foot { opacity: 0; transform: translateY(8px); filter: blur(3px); transition: none; }
+      #menu.waiting #start { pointer-events: none; }
       @media (max-width: 720px) {
         #menu { align-items: flex-end; }
         .panel { margin: 0 20px 14vh auto; gap: 18px; }
@@ -322,7 +330,7 @@
         .side { padding-left: 18px; gap: 18px; }
       }
       @media (prefers-reduced-motion: reduce) {
-        #rotate svg, #controls .glyph, #loading * { animation: none; }
+        #rotate svg, #controls .glyph, #loading *, #menu.booting .panel * { animation: none; }
         #grain { animation: none; }
         #area.play .area-zh, #area.play .area-en, #area.play .area-rule span { animation: none; }
         #area.play .area-rule::before, #area.play .area-rule::after { animation: none; transform: none; }
@@ -332,14 +340,7 @@
   </head>
   <body>
     <canvas id="canvas"></canvas>
-    <div id="curtain">
-      <div id="loading" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <div class="load-zh" lang="zh-Hans">梦越苍穹</div>
-        <div class="load-en">Dream Beyond the Sky</div>
-        <div class="load-bar"><span></span></div>
-        <div class="load-label">Loading</div>
-      </div>
-    </div>
+    <div id="curtain"></div>
     <div id="rotate" role="alert">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
         <rect x="7" y="2.5" width="10" height="19" rx="1.8" /><path d="M10.5 18.5h3" />
@@ -353,7 +354,7 @@
     <div class="bar top"></div>
     <div class="bar bottom"></div>
     <div id="lids" aria-hidden="true"><div class="lid top"></div><div class="lid bottom"></div></div>
-    <div id="menu" aria-hidden="true">
+    <div id="menu" class="booting" aria-hidden="true">
       <div class="panel">
         <h1 class="title-v" lang="zh-Hans">梦越苍穹</h1>
         <div class="side">
@@ -361,6 +362,10 @@
           <div class="actions">
             <button id="start" type="button"><span class="kanji" lang="zh-Hans">启</span>Start</button>
             <div class="foot">Press Enter</div>
+            <div id="loading" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="load-bar"><span></span></div>
+              <div class="load-label">Loading</div>
+            </div>
           </div>
         </div>
       </div>

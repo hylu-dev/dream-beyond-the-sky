@@ -26,20 +26,39 @@ export const CRASH_DEFAULTS = {
     speedSeconds: 2.5,
     turbulence: 3.4, // flight.js's gust strength, up from its own
     inputSeconds: 0.8, // her steering fades out over this
-    bankAhead: 70, // metres ahead the cloud wall goes, fading in
+    bankAhead: 78, // metres ahead the cloud wall goes, fading in
     bankRadius: 14,
     // The big sky clouds' share of it, on the near side so it looks a wall
     // from far off but is gone before the cliff.
     skyBankBefore: 16,
     skyBankRadius: 28,
-    whiteout: 0.88, // the white's peak, as the camera crosses the wall's middle
-    whiteMetres: 10, // half its length along her line
+  },
+  // The screen as she flies at it, building from the storm's start to the
+  // blow, by how much of the way she has come: the same red-black closing
+  // in as the fall's dread, the colour draining, the view narrowing on her
+  // and trembling. Over the last `surge` of the way it all rushes on harder.
+  // The blow's flash and the fall's dread take over from it.
+  approach: {
+    curve: 1.2, // >1 holds back early and piles on near the end
+    surge: 0.2, // the last share of the way, where it rushes
+    clear: [80, 34], // % out to the frame's corners left clear of the dark
+    dark: 0.88,
+    blurPx: 0.6, // at full
+    contrast: 0.45,
+    bleach: 0.6,
+    narrowDeg: 12, // field of view taken off, at full
+    surgeNarrowDeg: 6, // and more again, in the surge
+    shakeDeg: 0.5, // trembling, at full; three times that in the surge
+    shakeHz: 9,
   },
   cliff: {
     formation: 'tall-spire',
     scale: 3,
     side: 1, // 1: it stands to her left, -1: to her right
-    beyond: 16, // metres past the wall's middle where she meets it, still in it
+    // Metres past the wall's middle where she meets it, still in it: the
+    // cliff shows only about half a second before the blow. With the wall's
+    // `bankAhead` it keeps the blow 7.37 s in, where the storm's crash lands.
+    beyond: 8,
     // It stands right across her way: the corner of it that stands furthest
     // out toward her line, at the foot of its top-heavy block, is `across`
     // metres past her middle on her far side, and she flies into the bare
@@ -203,7 +222,7 @@ export function createCrash(deps, options = {}) {
   const armature = character.armature;
 
   // The cliff she hits: its own, outside the pooled ones (which give way
-  // when she comes close) and hidden until the white.
+  // when she comes close) and hidden until the camera is in the cloud wall.
   const root = new Entity('crash-cliff');
   root.enabled = false;
   scene.app.root.addChild(root);
@@ -263,6 +282,7 @@ export function createCrash(deps, options = {}) {
   let t = 0; // seconds into the phase, slowed with the blow
   let bankAlong = 0;
   let hitAlong = 0;
+  let approachFrom = 0; // where she was along her line as the storm began
   let sounded = false;
   let reacted = false;
   let reactT = 0; // t when she saw it
@@ -743,7 +763,7 @@ export function createCrash(deps, options = {}) {
       sounded = true;
       audio.play('cloud-pass', { cut: true });
     }
-    // In the white, the cliff takes shape.
+    // In the cloud wall, the cliff takes shape.
     if (camAlong >= bankAlong - 1) {
       spawnCliff();
       takeCamera();
@@ -800,6 +820,27 @@ export function createCrash(deps, options = {}) {
   }
 
   const clearFrom = () => o.storm.bankAhead - o.storm.skyBankBefore - o.storm.skyBankRadius;
+
+  // ── The screen, as she flies at it ──────────────────────────────────────
+
+  let approachShake = 0;
+  function updateApproach(dt) {
+    const a = o.approach;
+    const end = bankAlong + o.cliff.beyond; // where the blow lands
+    const come = Math.min(Math.max((s.pos.dot(s.forward) - approachFrom) / Math.max(end - approachFrom, 1), 0), 1);
+    const tension = come ** a.curve;
+    const surge = smooth(1 - a.surge, 1, come);
+    deps.dreadEl.style.setProperty('--clear', `${(a.clear[0] + (a.clear[1] - a.clear[0]) * tension).toFixed(1)}%`);
+    deps.dreadEl.style.opacity = (a.dark * tension).toFixed(3);
+    deps.canvas.style.filter = `blur(${(a.blurPx * tension).toFixed(2)}px) contrast(${(1 + a.contrast * tension).toFixed(3)}) `
+      + `saturate(${(1 - a.bleach * tension).toFixed(3)})`;
+    // The view: narrowing and trembling. The cameras set it afresh every
+    // frame, so this rides on top.
+    cam.camera.fov -= a.narrowDeg * tension + a.surgeNarrowDeg * surge;
+    approachShake += dt * a.shakeHz;
+    const shake = a.shakeDeg * tension * (1 + 2 * surge);
+    cam.rotateLocal(fbm1(approachShake, 341) * shake, fbm1(approachShake * 1.1, 342) * shake, fbm1(approachShake * 0.7, 343) * shake * 0.6);
+  }
 
   // ── The screen, as she falls ────────────────────────────────────────────
 
@@ -866,7 +907,9 @@ export function createCrash(deps, options = {}) {
       sounded = reacted = false;
       slow = 1;
       limpWeight = braceWeight = 0;
-      dread = beat = flicker = 0;
+      dread = beat = flicker = approachShake = 0;
+      approachFrom = s.pos.dot(s.forward);
+      deps.fadeEl.style.opacity = 0;
       input.from.turn = steer.turn;
       input.from.climb = steer.climb;
       turbulence = flight.options.turbulence;
@@ -900,10 +943,7 @@ export function createCrash(deps, options = {}) {
       else if (phase === 'reveal') updateReveal(dt);
       else if (phase === 'fall' || phase === 'out') updateFall(dt);
       if (phase !== 'storm' && phase !== 'out') hazeCliff();
-      if (phase === 'storm' || phase === 'reveal') {
-        const camAlong = cam.getPosition().dot(s.forward);
-        deps.fadeEl.style.opacity = o.storm.whiteout * Math.max(1 - Math.abs(camAlong - bankAlong) / o.storm.whiteMetres, 0);
-      }
+      if (phase === 'storm' || phase === 'reveal') updateApproach(dt);
       return dt;
     },
 

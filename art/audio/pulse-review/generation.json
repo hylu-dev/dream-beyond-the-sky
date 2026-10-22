@@ -1,0 +1,39 @@
+{
+  "model": "eleven_text_to_sound_v2",
+  "normalizationLUFS": -16,
+  "sceneStrikeAt": 1,
+  "selectedId": "06",
+  "game": {
+    "seconds": 14,
+    "fade": 3,
+    "lufs": -12,
+    "limit": 0.8413951416451951
+  },
+  "layers": {
+    "transient": {
+      "seconds": 2,
+      "takes": 2,
+      "prompt": "One extremely sharp, heavily compressed cinematic impact transient: a tight punchy close thud with a crisp click at the very front and a dense, muted low body that stops quickly. Modern action-game hit design, dry and powerful. Exactly one hit at the beginning. No music, no voice, no reverb tail, no riser."
+    },
+    "subdrop": {
+      "seconds": 2,
+      "takes": 2,
+      "prompt": "A heavy saturated sub-bass drop impact: an instant, deep, distorted boom that plunges down in pitch and is cut off abruptly after half a second. Dense, gritty and overdriven, felt in the chest. One hit only. No music, no melody, no drums, no reverb."
+    },
+    "wub": {
+      "seconds": 3,
+      "takes": 2,
+      "prompt": "A heavy processed electronic bass wobble: a deep, distorted, growling dubstep-style wub that wobbles twice slowly and stops. Dark and weighty, one short phrase. No drums, no melody, no voice."
+    },
+    "dagu": {
+      "seconds": 3,
+      "takes": 2,
+      "prompt": "One huge Chinese war drum (dagu) struck once with full force: a deep booming drum-skin hit with a tight attack and a short dark resonance. Single strike, no other instruments, no music."
+    },
+    "guqin": {
+      "seconds": 3,
+      "takes": 2,
+      "prompt": "A low guqin string plucked hard once with a slow downward pitch slide: a deep, woody, resonant twang fading out. Single note, no melody, no other instruments, no music."
+    }
+  }
+}
