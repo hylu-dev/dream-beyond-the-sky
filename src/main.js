@@ -402,7 +402,13 @@ const startEl = document.getElementById('start');
 const audio = createAudio();
 for (const type of ['pointerdown', 'pointerup', 'keydown']) window.addEventListener(type, () => audio.unlock());
 
-const scene = await loading.track(Scene.create(canvas, { fov: 50, near: 0.05, far: 5000 }), LOAD_MB.scene);
+// Phones draw the splats with WebGL. On WebGPU the engine sorts them on the
+// GPU, and on an iPhone that left the realms frozen and garbled on some
+// loads while the sprites moved on. ?backend=webgpu or ?backend=webgl
+// overrides the choice.
+const touchDevice = matchMedia('(pointer: coarse)').matches || /iPhone|iPad|iPod|Android/.test(navigator.userAgent);
+const backend = new URLSearchParams(location.search).get('backend') || (touchDevice ? 'webgl' : undefined);
+const scene = await loading.track(Scene.create(canvas, { fov: 50, near: 0.05, far: 5000, backend }), LOAD_MB.scene);
 scene.start();
 
 // Both scenes are current-era SPZ (NGSP v4): +Y up, so no rotation.
@@ -1956,6 +1962,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
     opening: () => ({ stateTime, riseTime: rise.time, riseSettled: rise.settle, position: pos.clone(), headingDeg }),
     camera: scene.cameraEntity,
     app: scene.app,
+    device: () => scene.app.graphicsDevice.deviceType,
     start: () => state === 'menu' && startAwakening(),
     wind: () => wind,
     audio,
