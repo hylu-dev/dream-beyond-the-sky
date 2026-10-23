@@ -413,9 +413,15 @@ const backend = new URLSearchParams(location.search).get('backend') || (touchDev
 // its button reloads the page.
 const failedEl = document.getElementById('failed');
 failedEl.querySelector('button').addEventListener('click', () => location.reload());
+function showFailed(zh, en) {
+  failedEl.querySelector('.zh').textContent = zh;
+  failedEl.querySelector('.en').textContent = en;
+  failedEl.classList.add('show');
+  audio.held = true;
+}
 function loadFailed(error) {
   console.error(error);
-  failedEl.classList.add('show');
+  showFailed('梦未能载入', "The dream couldn't load");
   throw error;
 }
 async function fetchJson(url) {
@@ -426,6 +432,14 @@ async function fetchJson(url) {
 
 const scene = await loading.track(Scene.create(canvas, { fov: 50, near: 0.05, far: 5000, backend }), LOAD_MB.scene).catch(loadFailed);
 scene.start();
+// A phone can take the graphics memory back - an iPhone often does after a
+// switch to another app - and the splats don't come back with it, so the
+// same sheet offers a fresh start instead of a blank or garbled scene.
+const device = scene.app.graphicsDevice;
+device.on('devicelost', () => showFailed('梦已中断', 'The dream was interrupted'));
+device.wgpu?.lost.then((info) => {
+  if (info.reason !== 'destroyed') showFailed('梦已中断', 'The dream was interrupted');
+});
 
 // Both scenes are current-era SPZ (NGSP v4): +Y up, so no rotation. The
 // title waits only for what the menu and the opening play: the island, her,
@@ -1477,7 +1491,7 @@ function updateSkyGrade(dt) {
 const upright = matchMedia('(orientation: portrait) and (pointer: coarse)');
 const holdForUpright = () => {
   scene.app.timeScale = upright.matches ? 0 : 1;
-  audio.held = upright.matches || document.hidden;
+  audio.held = upright.matches || document.hidden || failedEl.classList.contains('show');
 };
 upright.addEventListener('change', holdForUpright);
 document.addEventListener('visibilitychange', holdForUpright);

@@ -34,18 +34,18 @@ The output is unchanged: the tints written are the same values, just not rewritt
 
 ## Memory and loading
 
-The title screen waits only for what the menu and the opening play: the island realm, the character, the `idle`, `doze`, `wake`, `getup-sunrise` and `vanish` clips, and the two path files (about 37 MiB). Once those are in, the flight's assets load behind the menu and the opening: the sky realm, the cliff set, and the `step-off`, `flail`, `impact`, `limpfall`, `breathe` and `sigh` clips (about 34 MiB). She waits at the brink until they are in, showing "Loading" after two seconds, and a full hold-to-skip ring waits for them too. `?fly=1` waits for them before starting. A failed load in either group shows the `#failed` sheet with a reload button. Audio loads alongside without blocking.
+The title screen waits only for what the menu and the opening play: the island realm, the character, the `idle`, `doze`, `wake`, `getup-sunrise` and `vanish` clips, and the two path files (about 24 MiB). Once those are in, the flight's assets load behind the menu and the opening: the sky realm, the cliff set, and the `step-off`, `flail`, `impact`, `limpfall`, `breathe` and `sigh` clips (about 33 MiB). She waits at the brink until they are in, showing "Loading" after two seconds, and a full hold-to-skip ring waits for them too. `?fly=1` waits for them before starting. A failed load in either group shows the `#failed` sheet with a reload button; so does a lost graphics device (an iPhone can reclaim it after a switch to another app), since the splats are not restored with it. Audio loads alongside without blocking.
 
 | Fetched at startup | Download | Resident afterwards |
 | --- | ---: | --- |
 | Island realm (`.spz`) | 16.3 MiB | ~32 MiB GPU textures + 12 MiB CPU sort centers (estimated from formats) |
 | Sky realm (`.spz`) | 16.0 MiB | the same, held through the whole island sequence |
-| Animation clips (10 `.glb`) | 23.5 MiB | parsed into keyframe tracks |
+| Animation clips (11 `.glb`) | 13.8 MiB | parsed into keyframe tracks |
 | Cliff textures and mesh | 9.5 MiB | 32 MiB GPU (four 1254² RGBA textures with mips) |
 | Character (`.vsplat`) | 1.2 MiB | small |
 | Decoded sounds (`.mp3`) | 6.2 MiB | **~132 MiB** PCM at 48 kHz (360.6 s of stereo float32) |
 | Streamed music (`.mp3`) | 4.3 MiB | browser media buffers only |
-| **Total** | **76.9 MiB** | |
+| **Total** | **67.2 MiB** | |
 
 The decoded-sound figure is exact arithmetic from the files' durations. The splat figures follow from PlayCanvas's texture formats and still need confirming in a browser. Repository cleanup removed the three superseded cliff GLBs, inactive stone/cloud textures and favicon option galleries from `public/`, saving about 29 MiB per deployment. The four current `flight/cliffs/*.glb` models remain for asset export and validation (`tools/build-flight-cliffs.py` and `tools/verify-cliff-demo.mjs`); runtime cliffs use `cliffs.mesh.json`. The island atlas remains referenced by `src/flightScenery.js`.
 
@@ -62,6 +62,10 @@ npm run build
 `verify-cliff-avoidance` flies the real flight model and chase camera among the real cliff boxes for five seeds of two minutes each, with a pilot who aims at the nearest cliff. Without avoidance, three of the five runs put her inside the rock's 2.5 m hide distance (73–532 frames) and hide cliffs from the lens on 85–606 frames. With avoidance she stays at least 4.5 m off, no cliff hides from her or the lens, and the contact slide never moves her more than 0.17 m in a frame. Idle and gently wandering pilots on the same seeds are never steered or pushed.
 
 The performance check covers initial invisibility, exact-zero hiding, faint nonzero visibility, fade-in restoration, and shrouds moved while hidden or parked. The atmosphere check also verifies birds-only startup avoids the atlas, alongside the existing sustained-flight, geometry, buffer reuse and scenery checks. The cliff check exercises anchored clouds and both shader source paths.
+
+## Clip size
+
+`node tools/compact-clips.mjs public/assets/anims/*.glb` drops what the engine's clip decoder never reads (meshes, materials, skin bind matrices) and stores float rotations as normalized 16-bit; translations stay float. It decodes each clip with `Animation.fromGlb` before and after and writes only if every keyframe value moves by at most 1e-4 (16-bit steps are 3e-5). Run it on any newly exported clip. It took `doze`, `wake`, `vanish`, `getup-sunrise` and `step-off` from 18.3 MB to 6.7 MB (worst change 2e-5); the other clips were already compact.
 
 ## Music memory
 
