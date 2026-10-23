@@ -551,10 +551,11 @@ const skyClouds = createWindFx(scene, {
 const flightScenery = createFlightScenery(scene, { islands: 0 });
 const flightAir = createFlightAir(scene);
 // The sky scene, the cliffs and the crash, once flightLoads is in.
-let sky, flightCliffs, crash;
+let sky, flightCliffs, crash, cliffAssets;
 let flightReady = false;
-const flightLoaded = flightLoads.then(([skyRealm, cliffAssets]) => {
+const flightLoaded = flightLoads.then(([skyRealm, cliffs]) => {
   sky = skyRealm;
+  cliffAssets = cliffs;
   // A cliff she passes close by goes past with a whoosh, on its side.
   flightCliffs = createFlightCliffs(scene, cliffAssets, {
     clouds: skyClouds,
@@ -1284,9 +1285,13 @@ function updateIslandSequence(dt) {
       }
       if (state === 'drop') {
         updateHoldCamera(dt);
-        if (stateTime >= EDGE.hiddenAfter) setState('hold');
+        if (stateTime >= EDGE.hiddenAfter) {
+          setState('hold');
+          warmFlight();
+        }
       } else {
         updateHoldCamera(dt, { emptyTime: stateTime });
+        if (stateTime >= WARM.speckSeconds) clearSpecks();
         // Follow the audio clock so the full cue and silence survive frame delays.
         if (ledgeMusicAt >= 0 && audio.ctx.currentTime - ledgeMusicAt >= LEDGE_MUSIC.seconds + LEDGE_MUSIC.silence) {
           rumble = 0;
@@ -1428,7 +1433,35 @@ function updateFlash() {
   flashing = flash > 0 || camAlong < wipeAlong;
 }
 
+// The first draw of the sky scene - a work buffer for a million splats -
+// and of the cliffs' five materials, whose shaders compile on first use, is
+// heavy, and on the swap's own frame it froze the flight's start. So on the
+// empty ledge, while she is out of sight, the sky draws clipped to nothing
+// and a speck of each cliff, far too small to see, draws in front of the lens
+// for `speckSeconds`. Both are then ready when the swap shows them.
+const WARM = { speckSeconds: 0.4, speckMetres: 2, speckScale: 1e-6 };
+const specks = [];
+function warmFlight() {
+  if (!flightReady || sky.entity.enabled) return;
+  sky.setClipDistance(0, 0); // an empty band: nothing drawn
+  sky.entity.enabled = true;
+  sky.setTint(0); // and its work buffer due a render
+  const cam = scene.cameraEntity;
+  const at = new Vec3().copy(cam.forward).mulScalar(WARM.speckMetres).add(cam.getPosition());
+  for (let v = 0; v < cliffAssets.variants.length; v++) {
+    const { entity } = cliffAssets.instantiate(v);
+    entity.setPosition(at);
+    entity.setLocalScale(WARM.speckScale, WARM.speckScale, WARM.speckScale);
+    specks.push(entity);
+  }
+}
+function clearSpecks() {
+  for (const entity of specks.splice(0)) entity.destroy();
+}
+
 function swapToSky() {
+  clearSpecks();
+  sky.setClipDistance(0); // all of it again, after warmFlight
   // The sky scene keeps the golden hour she left in, to begin with.
   skyGrade.intensity = timeOfDay.grade.intensity;
   skyGrade.color = timeOfDay.grade.color;
@@ -2008,6 +2041,8 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
     windFx,
     skyClouds,
     get flightCliffs() { return flightCliffs; }, // once flightLoads is in
+    get sky() { return sky; },
+    warmFlight,
     flightScenery,
     flightAir,
     timeOfDay,

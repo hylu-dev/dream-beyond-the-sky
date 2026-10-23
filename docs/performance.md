@@ -63,6 +63,10 @@ npm run build
 
 The performance check covers initial invisibility, exact-zero hiding, faint nonzero visibility, fade-in restoration, and shrouds moved while hidden or parked. The atmosphere check also verifies birds-only startup avoids the atlas, alongside the existing sustained-flight, geometry, buffer reuse and scenery checks. The cliff check exercises anchored clouds and both shader source paths.
 
+## Swap warm-up
+
+The first draw of the sky realm (its work buffer for 1,048,576 splats) and of the cliffs' five materials (their shaders compile on first use) used to land on the frame the cloud bank swaps the island for the sky, freezing the launch for a moment. `warmFlight()` now runs as the empty-ledge shot (`hold`) begins, while she is out of sight: the sky is enabled with `setClipDistance(0, 0)`, an empty band that draws nothing, and a 1e-6-scale speck of each cliff formation draws 2 m in front of the lens for 0.4 s. `swapToSky()` restores the full band and removes the specks. The skip and `?fly=1` paths swap under the black curtain and don't need it. The warm-up was checked to leave the frame unchanged and the swap to restore the sky; the freeze itself needs timing on a phone, since the sandbox renders on the CPU.
+
 ## Clip size
 
 `node tools/compact-clips.mjs public/assets/anims/*.glb` drops what the engine's clip decoder never reads (meshes, materials, skin bind matrices) and stores float rotations as normalized 16-bit; translations stay float. It decodes each clip with `Animation.fromGlb` before and after and writes only if every keyframe value moves by at most 1e-4 (16-bit steps are 3e-5). Run it on any newly exported clip. It took `doze`, `wake`, `vanish`, `getup-sunrise` and `step-off` from 18.3 MB to 6.7 MB (worst change 2e-5); the other clips were already compact.
