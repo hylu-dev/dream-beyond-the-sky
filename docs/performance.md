@@ -34,7 +34,7 @@ The output is unchanged: the tints written are the same values, just not rewritt
 
 ## Memory and loading
 
-The title screen waits for one `Promise.all` covering both realms, the character, all ten animation clips and the cliff set. Audio loads alongside it without blocking.
+The title screen waits only for what the menu and the opening play: the island realm, the character, the `idle`, `doze`, `wake`, `getup-sunrise` and `vanish` clips, and the two path files (about 37 MiB). Once those are in, the flight's assets load behind the menu and the opening: the sky realm, the cliff set, and the `step-off`, `flail`, `impact`, `limpfall`, `breathe` and `sigh` clips (about 34 MiB). She waits at the brink until they are in, showing "Loading" after two seconds, and a full hold-to-skip ring waits for them too. `?fly=1` waits for them before starting. A failed load in either group shows the `#failed` sheet with a reload button. Audio loads alongside without blocking.
 
 | Fetched at startup | Download | Resident afterwards |
 | --- | ---: | --- |

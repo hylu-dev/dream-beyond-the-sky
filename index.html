@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Dream Beyond the Sky</title>
     <link rel="icon" type="image/png" href="%BASE_URL%favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -72,13 +72,32 @@
       #rotate {
         position: fixed; inset: 0; z-index: 10; display: none;
         flex-direction: column; align-items: center; justify-content: center; gap: 22px;
-        padding: 0 16px; text-align: center; background: #0b0d18; color: var(--paper);
+        padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+        text-align: center; background: #0b0d18; color: var(--paper);
       }
       #rotate svg { width: 46px; height: 46px; color: rgba(201, 164, 92, 0.85); animation: rotate-hint 2.8s cubic-bezier(0.5, 0, 0.3, 1) infinite; }
       #rotate .zh { font: 300 22px/1 'Noto Serif SC', serif; letter-spacing: 0.3em; padding-left: 0.3em; }
       #rotate .en {
         font: 500 12px/1.6 'Cormorant Garamond', serif; letter-spacing: 0.32em; padding-left: 0.32em;
         text-transform: uppercase; color: rgba(239, 230, 210, 0.7);
+      }
+      /* A load that failed: the same night-blue sheet, and a tap to try again. */
+      #failed {
+        position: fixed; inset: 0; z-index: 11; display: none;
+        flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+        padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+        text-align: center; background: #0b0d18; color: var(--paper);
+      }
+      #failed.show { display: flex; }
+      #failed .zh { font: 300 22px/1 'Noto Serif SC', serif; letter-spacing: 0.3em; padding-left: 0.3em; }
+      #failed .en {
+        font: 500 12px/1.6 'Cormorant Garamond', serif; letter-spacing: 0.32em; padding-left: 0.32em;
+        text-transform: uppercase; color: rgba(239, 230, 210, 0.7);
+      }
+      #failed button {
+        margin-top: 6px; padding: 10px 22px; border: 1px solid var(--gold-dim); background: none; color: var(--gold);
+        font: 600 13px/1 'Cormorant Garamond', serif; letter-spacing: 0.34em; padding-left: calc(22px + 0.34em);
+        text-transform: uppercase; cursor: pointer;
       }
       @keyframes rotate-hint { 0%, 20% { transform: rotate(0); } 50%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
       @media (orientation: portrait) and (pointer: coarse) {
@@ -89,7 +108,7 @@
          during a cutscene, its ring filling until the scene skips to the
          flight. ── */
       #skip {
-        position: fixed; right: clamp(20px, 4vw, 56px); bottom: calc(7vh + 18px); z-index: 4;
+        position: fixed; right: calc(clamp(20px, 4vw, 56px) + env(safe-area-inset-right)); bottom: calc(7vh + 18px + env(safe-area-inset-bottom)); z-index: 4;
         display: flex; align-items: center; gap: 10px; pointer-events: none;
         color: rgba(239, 230, 210, 0.82); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
         font: 500 12px/1 'Cormorant Garamond', serif; letter-spacing: 0.3em; text-transform: uppercase;
@@ -101,7 +120,7 @@
       #skip .track { stroke: rgba(239, 230, 210, 0.22); }
       #skip .fill { stroke: var(--gold); stroke-dasharray: 56.55; stroke-dashoffset: calc(56.55 * (1 - var(--p, 0))); }
       #hint {
-        position: fixed; z-index: 4; left: 50%; bottom: 24px; transform: translateX(-50%);
+        position: fixed; z-index: 4; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%);
         color: rgba(239, 230, 210, 0.55); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
         font: 500 12px/1.4 'Cormorant Garamond', serif; letter-spacing: 0.3em; text-transform: uppercase;
         pointer-events: none;
@@ -112,7 +131,7 @@
          to go - clear at the foot of the frame until she is first
          steered, then gone. ── */
       #controls {
-        position: fixed; left: 50%; bottom: 6vh; z-index: 1; transform: translate(-50%, 6px);
+        position: fixed; left: 50%; bottom: calc(6vh + env(safe-area-inset-bottom)); z-index: 1; transform: translate(-50%, 6px);
         display: flex; align-items: center; gap: 10px; padding: 12px 22px;
         color: var(--paper); pointer-events: none; opacity: 0;
         transition: opacity 0.9s ease, transform 0.9s ease;
@@ -143,7 +162,7 @@
         text-transform: uppercase; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55); white-space: nowrap;
       }
       @media (max-width: 720px), (max-height: 480px) {
-        #controls { bottom: 5vh; }
+        #controls { bottom: calc(5vh + env(safe-area-inset-bottom)); }
         #controls span { font-size: 13px; letter-spacing: 0.26em; }
       }
 
@@ -244,7 +263,7 @@
         background: radial-gradient(ellipse 46% 74% at 100% 50%, rgba(6, 8, 16, 0.42), rgba(6, 8, 16, 0.16) 50%, transparent 78%);
       }
       .panel {
-        position: relative; z-index: 1; margin-right: clamp(32px, 10vw, 160px);
+        position: relative; z-index: 1; margin-right: calc(clamp(32px, 10vw, 160px) + env(safe-area-inset-right));
         display: flex; align-items: stretch; gap: 26px; color: var(--paper);
       }
       .title-v {
@@ -328,7 +347,7 @@
       #menu.waiting #start { pointer-events: none; }
       @media (max-width: 720px) {
         #menu { align-items: flex-end; }
-        .panel { margin: 0 20px 14vh auto; gap: 18px; }
+        .panel { margin: 0 calc(20px + env(safe-area-inset-right)) calc(14vh + env(safe-area-inset-bottom)) auto; gap: 18px; }
         .title-v { font-size: 24px; }
         .side { padding-left: 18px; gap: 18px; }
       }
@@ -350,6 +369,11 @@
       </svg>
       <div class="zh" lang="zh-Hans">请横屏</div>
       <div class="en">Turn your device to landscape</div>
+    </div>
+    <div id="failed" role="alert">
+      <div class="zh" lang="zh-Hans">梦未能载入</div>
+      <div class="en">The dream couldn't load</div>
+      <button type="button">Try again</button>
     </div>
     <div id="vignette"></div>
     <div id="grain"></div>

@@ -382,7 +382,7 @@ const fadeEl = document.getElementById('fade');
 const curtainEl = document.getElementById('curtain');
 // Each load's share of the bar, its rough size in MB.
 const loading = createLoadingBar(document.getElementById('loading'));
-const LOAD_MB = { scene: 1, realm: 16.5, character: 1.3, cliffs: 33, animation: 3, setup: 2 };
+const LOAD_MB = { scene: 1, realm: 16.5, character: 1.3, animation: 3, setup: 2 };
 const dreadEl = document.getElementById('dread');
 const lidsEl = document.getElementById('lids');
 // The black over the screen, opening from the middle: 0 open, 1 shut.
@@ -408,36 +408,53 @@ for (const type of ['pointerdown', 'pointerup', 'keydown']) window.addEventListe
 // overrides the choice.
 const touchDevice = matchMedia('(pointer: coarse)').matches || /iPhone|iPad|iPod|Android/.test(navigator.userAgent);
 const backend = new URLSearchParams(location.search).get('backend') || (touchDevice ? 'webgl' : undefined);
-const scene = await loading.track(Scene.create(canvas, { fov: 50, near: 0.05, far: 5000, backend }), LOAD_MB.scene);
+// A load that fails - a dropped connection on a phone, say - puts up
+// index.html's #failed sheet rather than leaving the bar creeping forever;
+// its button reloads the page.
+const failedEl = document.getElementById('failed');
+failedEl.querySelector('button').addEventListener('click', () => location.reload());
+function loadFailed(error) {
+  console.error(error);
+  failedEl.classList.add('show');
+  throw error;
+}
+async function fetchJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  return response.json();
+}
+
+const scene = await loading.track(Scene.create(canvas, { fov: 50, near: 0.05, far: 5000, backend }), LOAD_MB.scene).catch(loadFailed);
 scene.start();
 
-// Both scenes are current-era SPZ (NGSP v4): +Y up, so no rotation.
-const [sanctuary, sky, character, cliffAssets] = await Promise.all([
+// Both scenes are current-era SPZ (NGSP v4): +Y up, so no rotation. The
+// title waits only for what the menu and the opening play: the island, her,
+// and her clips as far as the walk to the edge. The flight's - the sky
+// scene, the cliffs, and her clips from the step off on - follow below.
+const [sanctuary, character, stepOffPath, risePath] = await Promise.all([
   loading.track(Environment.load(scene, assetUrl('floating-island-realm.spz'), {
     scale: REALM_M_PER_UNIT,
     position: { x: 0, y: 1.5, z: 0 }, // floor at y = 0
   }), LOAD_MB.realm),
-  loading.track(Environment.load(scene, assetUrl('cloud-realm.spz'), {
-    scale: SKY_M_PER_UNIT * SKY_SCALE,
-  }), LOAD_MB.realm),
   loading.track(Character.load(scene, assetUrl('martial-artist.vsplat')), LOAD_MB.character),
-  loading.track(loadCliffAssets(scene), LOAD_MB.cliffs),
-  loading.track(loadAnimation(scene, assetUrl('anims/idle.glb'), 'idle'), LOAD_MB.animation),
-  loading.track(loadAnimation(scene, assetUrl('anims/doze.glb'), 'doze'), LOAD_MB.animation),
-  loading.track(loadAnimation(scene, assetUrl('anims/wake.glb'), 'wake'), LOAD_MB.animation),
-  loading.track(loadAnimation(scene, assetUrl('anims/getup-sunrise.glb'), 'getup'), LOAD_MB.animation),
-  loading.track(loadAnimation(scene, assetUrl('anims/vanish.glb'), 'vanish'), LOAD_MB.animation),
-  loading.track(loadAnimation(scene, assetUrl('anims/step-off.glb'), 'step-off'), LOAD_MB.animation),
-  loading.track(loadAnimation(scene, assetUrl('anims/flail.glb'), 'flail'), LOAD_MB.animation),
-  loading.track(loadAnimation(scene, assetUrl('anims/impact.glb'), 'impact'), LOAD_MB.animation),
-  loading.track(loadAnimation(scene, assetUrl('anims/limpfall.glb'), 'limpfall'), LOAD_MB.animation),
-  loading.track(loadAnimation(scene, assetUrl('anims/breathe.glb'), 'breathe'), LOAD_MB.animation),
-  loading.track(loadAnimation(scene, assetUrl('anims/sigh.glb'), 'sigh'), LOAD_MB.animation),
+  fetchJson(assetUrl('anims/step-off.path.json')),
+  fetchJson(assetUrl('anims/getup-sunrise.path.json')),
+  ...[['idle', 'idle'], ['doze', 'doze'], ['wake', 'wake'], ['getup-sunrise', 'getup'], ['vanish', 'vanish']].map(([file, name]) =>
+    loading.track(loadAnimation(scene, assetUrl(`anims/${file}.glb`), name), LOAD_MB.animation)),
+]).catch(loadFailed);
+
+// The flight's assets load behind the menu and the opening, after the
+// title's so they don't slow it; she waits at the brink until they're in
+// (flightReady). Hidden until the launch swaps the sky in.
+const flightLoads = Promise.all([
+  Environment.load(scene, assetUrl('cloud-realm.spz'), { scale: SKY_M_PER_UNIT * SKY_SCALE }).then((realm) => {
+    realm.entity.enabled = false;
+    return realm;
+  }),
+  loadCliffAssets(scene),
+  ...['step-off', 'flail', 'impact', 'limpfall', 'breathe', 'sigh'].map((name) =>
+    loadAnimation(scene, assetUrl(`anims/${name}.glb`), name)),
 ]);
-sky.entity.enabled = false;
-const [stepOffPath, risePath] = await Promise.all(
-  ['step-off', 'getup-sunrise'].map(async (name) => (await fetch(assetUrl(`anims/${name}.path.json`))).json()),
-);
 
 const timeOfDay = await loading.track(createTimeOfDay(scene, {
   environment: sanctuary,
@@ -515,16 +532,23 @@ const skyClouds = createWindFx(scene, {
 // The painted billboard islands are retired for the modelled cliffs; the
 // birds stay.
 const flightScenery = createFlightScenery(scene, { islands: 0 });
-// A cliff she passes close by goes past with a whoosh, on its side.
-const flightCliffs = createFlightCliffs(scene, cliffAssets, {
-  clouds: skyClouds,
-  onPass: ({ gap, side }) => audio.play('cliff-pass', { gain: 0.35 + 0.65 * smooth(16, 3, gap), pan: -0.7 * side }),
-});
 const flightAir = createFlightAir(scene);
-const crash = createCrash({
-  scene, flight, character, flightRig, chaseCamera, windFx, skyClouds, flightCliffs, cliffAssets, audio,
-  fadeEl, dreadEl, canvas, setLids, bodyMask: BODY_MASK, setFlailClip, placeFlyer,
-});
+// The sky scene, the cliffs and the crash, once flightLoads is in.
+let sky, flightCliffs, crash;
+let flightReady = false;
+const flightLoaded = flightLoads.then(([skyRealm, cliffAssets]) => {
+  sky = skyRealm;
+  // A cliff she passes close by goes past with a whoosh, on its side.
+  flightCliffs = createFlightCliffs(scene, cliffAssets, {
+    clouds: skyClouds,
+    onPass: ({ gap, side }) => audio.play('cliff-pass', { gain: 0.35 + 0.65 * smooth(16, 3, gap), pan: -0.7 * side }),
+  });
+  crash = createCrash({
+    scene, flight, character, flightRig, chaseCamera, windFx, skyClouds, flightCliffs, cliffAssets, audio,
+    fadeEl, dreadEl, canvas, setLids, bodyMask: BODY_MASK, setFlailClip, placeFlyer,
+  });
+  flightReady = true;
+}).catch(loadFailed);
 
 // Debug switches for the time-lapse: ?phase=0.25 freezes it (0 noon,
 // 0.25 sunset, 0.5 midnight), ?sky=0 drops the SkyDome, ?clip=40 moves the
@@ -548,7 +572,7 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     startAwakening();
   }
-  if (e.code === 'KeyI' && (state === 'fly' || state === 'menu')) {
+  if (e.code === 'KeyI' && (state === 'fly' || (state === 'menu' && flightReady))) {
     crashNow = true;
     if (state === 'menu') {
       menuEl.classList.remove('show');
@@ -1201,7 +1225,9 @@ function updateIslandSequence(dt) {
     case 'brink':
       rumble = smooth(0, BRINK.rumble.buildSeconds, stateTime);
       updateHoldCamera(dt);
-      if (stateTime >= BRINK.waitSeconds && readyToGo()) {
+      // On a slow connection she waits here for the flight's assets.
+      hintEl.textContent = flightReady || stateTime < BRINK.waitSeconds + 2 ? '' : 'Loading';
+      if (stateTime >= BRINK.waitSeconds && readyToGo() && flightReady) {
         rise.active = false;
         character.playAnimation('step-off', { loop: false });
         character.playbackSpeed = 0;
@@ -1496,7 +1522,8 @@ function updateSkip(dt) {
   skipLinger = on ? SKIP.lingerSeconds : Math.max(skipLinger - dt, 0);
   skipEl.classList.toggle('show', on || (skipLinger > 0 && !skipping));
   skipEl.style.setProperty('--p', Math.min(skipHold / SKIP.holdSeconds, 1).toFixed(3));
-  if (on && skipHold >= SKIP.holdSeconds) skipToFlight();
+  // A full ring holds until the flight's assets are in.
+  if (on && skipHold >= SKIP.holdSeconds && flightReady) skipToFlight();
 }
 
 function skipToFlight() {
@@ -1948,7 +1975,7 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
     seatPose,
     windFx,
     skyClouds,
-    flightCliffs,
+    get flightCliffs() { return flightCliffs; }, // once flightLoads is in
     flightScenery,
     flightAir,
     timeOfDay,
@@ -1966,12 +1993,15 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
     start: () => state === 'menu' && startAwakening(),
     wind: () => wind,
     audio,
-    crash,
+    get crash() { return crash; }, // once flightLoads is in
   };
 }
 
 const query = new URLSearchParams(location.search);
-if (query.get('fly') === '1' || crashNow) startFlyDirect();
+if (query.get('fly') === '1' || crashNow) {
+  await flightLoaded;
+  startFlyDirect();
+}
 else {
   startMenu();
   if (query.get('start') === '1') startAwakening();
