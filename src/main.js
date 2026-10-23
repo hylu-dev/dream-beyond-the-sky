@@ -382,7 +382,7 @@ const fadeEl = document.getElementById('fade');
 const curtainEl = document.getElementById('curtain');
 // Each load's share of the bar, its rough size in MB.
 const loading = createLoadingBar(document.getElementById('loading'));
-const LOAD_MB = { scene: 1, realm: 16.5, character: 1.3, animation: 3, setup: 2 };
+const LOAD_MB = { scene: 1, realm: 16.5, character: 1.3, cliffs: 9.5, animation: 1.2, setup: 2 };
 const dreadEl = document.getElementById('dread');
 const lidsEl = document.getElementById('lids');
 // The black over the screen, opening from the middle: 0 open, 1 shut.
@@ -460,14 +460,17 @@ const [sanctuary, character, stepOffPath, risePath] = await Promise.all([
 // The flight's assets load behind the menu and the opening, after the
 // title's so they don't slow it; she waits at the brink until they're in
 // (flightReady). Hidden until the launch swaps the sky in.
+// Their bar (#flight-loading) shows only if the story has to wait on them.
+const flightLoadingEl = document.getElementById('flight-loading');
+const flightLoading = createLoadingBar(flightLoadingEl);
 const flightLoads = Promise.all([
-  Environment.load(scene, assetUrl('cloud-realm.spz'), { scale: SKY_M_PER_UNIT * SKY_SCALE }).then((realm) => {
+  flightLoading.track(Environment.load(scene, assetUrl('cloud-realm.spz'), { scale: SKY_M_PER_UNIT * SKY_SCALE }).then((realm) => {
     realm.entity.enabled = false;
     return realm;
-  }),
-  loadCliffAssets(scene),
+  }), LOAD_MB.realm),
+  flightLoading.track(loadCliffAssets(scene), LOAD_MB.cliffs),
   ...['step-off', 'flail', 'impact', 'limpfall', 'breathe', 'sigh'].map((name) =>
-    loadAnimation(scene, assetUrl(`anims/${name}.glb`), name)),
+    flightLoading.track(loadAnimation(scene, assetUrl(`anims/${name}.glb`), name), LOAD_MB.animation)),
 ]);
 
 const timeOfDay = await loading.track(createTimeOfDay(scene, {
@@ -562,6 +565,7 @@ const flightLoaded = flightLoads.then(([skyRealm, cliffAssets]) => {
     fadeEl, dreadEl, canvas, setLids, bodyMask: BODY_MASK, setFlailClip, placeFlyer,
   });
   flightReady = true;
+  flightLoading.finish();
 }).catch(loadFailed);
 
 // Debug switches for the time-lapse: ?phase=0.25 freezes it (0 noon,
@@ -1239,8 +1243,8 @@ function updateIslandSequence(dt) {
     case 'brink':
       rumble = smooth(0, BRINK.rumble.buildSeconds, stateTime);
       updateHoldCamera(dt);
-      // On a slow connection she waits here for the flight's assets.
-      hintEl.textContent = flightReady || stateTime < BRINK.waitSeconds + 2 ? '' : 'Loading';
+      // On a slow connection she waits here, still, for the flight's assets.
+      waitingForFlight = stateTime >= BRINK.waitSeconds && readyToGo();
       if (stateTime >= BRINK.waitSeconds && readyToGo() && flightReady) {
         rise.active = false;
         character.playAnimation('step-off', { loop: false });
@@ -1505,6 +1509,7 @@ scene.app.on('update', (dt) => {
   else if (state === 'fly') updateFlight(dt);
   else if (state === 'crash') updateCrash(dt);
   else updateIslandSequence(dt);
+  updateFlightWait(dt);
   audio.update(dt);
 });
 
@@ -1530,11 +1535,24 @@ const releaseSkip = () => (skipHeld = false);
 window.addEventListener('pointerdown', pressSkip);
 for (const type of ['pointerup', 'pointercancel', 'blur']) window.addEventListener(type, releaseSkip);
 
+// How long the story has waited on the flight's assets, at the brink or on
+// a full skip ring; past `FLIGHT_WAIT.showAfter` their bar comes up at the
+// foot of the frame, in place of the skip prompt.
+const FLIGHT_WAIT = { showAfter: 1.5 };
+let waitingForFlight = false;
+let flightWait = 0;
+function updateFlightWait(dt) {
+  flightWait = waitingForFlight && !flightReady ? flightWait + dt : 0;
+  flightLoadingEl.classList.toggle('show', flightWait > FLIGHT_WAIT.showAfter);
+  waitingForFlight = false;
+}
+
 function updateSkip(dt) {
   const on = skipHeld && CUTSCENE.has(state) && !skipping;
+  if (on && skipHold >= SKIP.holdSeconds) waitingForFlight = true;
   skipHold = on ? skipHold + dt : Math.max(skipHold - 3 * dt, 0);
   skipLinger = on ? SKIP.lingerSeconds : Math.max(skipLinger - dt, 0);
-  skipEl.classList.toggle('show', on || (skipLinger > 0 && !skipping));
+  skipEl.classList.toggle('show', (on || (skipLinger > 0 && !skipping)) && flightWait <= FLIGHT_WAIT.showAfter);
   skipEl.style.setProperty('--p', Math.min(skipHold / SKIP.holdSeconds, 1).toFixed(3));
   // A full ring holds until the flight's assets are in.
   if (on && skipHold >= SKIP.holdSeconds && flightReady) skipToFlight();

@@ -62,26 +62,39 @@
       /* Over the menu's own rules for the pieces of .actions: shown only
          while it loads, never when the menu comes back. */
       #menu #loading { opacity: 0; transform: none; filter: none; transition: opacity 0.9s ease; }
-      #loading .load-bar {
+      :is(#loading, #flight-loading) .load-bar {
         position: relative; width: 100%; height: 1px;
         background: linear-gradient(to right, rgba(239, 230, 210, 0.16), rgba(239, 230, 210, 0.16) 80%, transparent);
         animation: load-in 1.6s ease 0.7s both;
       }
-      #loading .load-bar span {
+      :is(#loading, #flight-loading) .load-bar span {
         position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--p, 0));
         background: linear-gradient(to right, rgba(201, 164, 92, 0.35), var(--gold));
       }
-      #loading .load-bar::after {
+      :is(#loading, #flight-loading) .load-bar::after {
         content: ''; position: absolute; top: 50%; left: calc(var(--p, 0) * 100%);
         width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%;
         background: rgb(236, 206, 140); box-shadow: 0 0 10px 3px rgba(226, 190, 118, 0.55);
         opacity: min(1, calc(var(--p, 0) * 20));
       }
-      #loading .load-label {
+      :is(#loading, #flight-loading) .load-label {
         margin-top: 14px; font: 500 11px/1 'Cormorant Garamond', serif;
         letter-spacing: 0.3em; text-transform: uppercase; color: rgba(201, 164, 92, 0.6);
         animation: load-in 1.6s ease 0.9s both, load-breathe 2.8s ease-in-out 2.5s infinite;
       }
+      /* The same bar at the foot of the frame, by where "Hold to skip" shows,
+         while the story waits on the flight's assets: at the brink, or on a
+         full skip ring. */
+      #flight-loading {
+        position: fixed; z-index: 4; right: calc(clamp(20px, 4vw, 56px) + env(safe-area-inset-right));
+        bottom: calc(7vh + 18px + env(safe-area-inset-bottom)); width: min(140px, 30vw);
+        display: flex; flex-direction: column; align-items: flex-start; pointer-events: none;
+        opacity: 0; transition: opacity 0.9s ease;
+      }
+      #flight-loading.show { opacity: 1; }
+      /* Over the dawn sky, not the night: lifted like the skip prompt. */
+      #flight-loading .load-label { margin-top: 10px; color: rgba(239, 230, 210, 0.82); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+      #flight-loading .load-bar { box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
       @keyframes load-in { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } }
       @keyframes load-breathe { 50% { opacity: 0.45; } }
 
@@ -371,7 +384,7 @@
         .side { padding-left: 18px; gap: 18px; }
       }
       @media (prefers-reduced-motion: reduce) {
-        #rotate svg, #controls .glyph, #loading *, #menu.booting .panel * { animation: none; }
+        #rotate svg, #controls .glyph, #loading *, #flight-loading *, #menu.booting .panel * { animation: none; }
         #grain { animation: none; }
         #area.play .area-zh, #area.play .area-en, #area.play .area-rule span { animation: none; }
         #area.play .area-rule::before, #area.play .area-rule::after { animation: none; transform: none; }
@@ -388,6 +401,10 @@
       </svg>
       <div class="zh" lang="zh-Hans">请横屏</div>
       <div class="en">Turn your device to landscape</div>
+    </div>
+    <div id="flight-loading" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="load-bar"><span></span></div>
+      <div class="load-label">Loading</div>
     </div>
     <div id="failed" role="alert">
       <div class="zh" lang="zh-Hans">梦未能载入</div>
