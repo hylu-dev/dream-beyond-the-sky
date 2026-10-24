@@ -125,12 +125,13 @@ for (const [offset, lift] of [[0, 2], [5.165, 2], [11.25, 1.5], [13, 1]]) {
 
 // Late loading and a mid-track stall catch up instead of shifting the score.
 {
-  const { ctx, music, flight, advance, unlock } = setup();
+  const { ctx, music, flight, envelope, advance, unlock } = setup();
   flight.autoReady = false;
   await unlock();
   music.play('music-flight', { offset: 5.165, cut: true });
   await advance(2);
-  assert.ok(flight.paused);
+  assert.equal(envelope(flight).gain.value, 0, 'silent until its data arrives');
+  assert.equal(flight.currentTime, 0, 'no media time passes without data');
   flight.ready();
   await advance(0.1);
   assert.ok(Math.abs(flight.currentTime - 7.265) < 0.06, 'late load catches up to the original cue');
@@ -215,4 +216,22 @@ for (const [offset, lift] of [[0, 2], [5.165, 2], [11.25, 1.5], [13, 1]]) {
   assert.ok(flight.paused, 'a late play promise cannot revive a cancelled cue');
   music.destroy();
 }
-console.log('Streaming music checks passed: staged loading, fixed players, crossfades, offsets, lift, buffering, pause, interruption, cancellation and replay.');
+// iOS Safari buffers only once play() is called, and can drop a paused
+// element's buffer. A cue on such an element must still call play(), or it
+// waits forever for data that never comes.
+{
+  const { music, flight, envelope, advance, unlock } = setup();
+  for (const m of [flight]) m.bufferOnPlay = true;
+  await unlock();
+  await advance(0.1);
+  assert.ok(flight.paused, 'priming leaves the flight cue paused');
+  flight.purge();
+  await advance(30);
+  music.play('music-flight', { cut: true });
+  await advance(0.5);
+  assert.ok(!flight.paused, 'a cue on an unbuffered element still calls play()');
+  assert.ok(Math.abs(flight.currentTime - 0.5) < 0.06, `it plays from the cue time: ${flight.currentTime}`);
+  assert.ok(envelope(flight).gain.value > 0.5, 'and is audible');
+  music.destroy();
+}
+console.log('Streaming music checks passed: staged loading, fixed players, crossfades, offsets, lift, buffering, pause, interruption, cancellation, replay and buffer-on-play.');

@@ -17,6 +17,9 @@ export class TestMedia extends EventTarget {
     this.autoReady = true;
     this.deferPlay = false;
     this.pendingPlays = [];
+    // Like iOS Safari: preload is a hint it may ignore, buffering only once
+    // play() is called.
+    this.bufferOnPlay = false;
   }
   get name() { return this.src.split('/').at(-1).replace(/\.mp3$/, ''); }
   get currentTime() { return this.position; }
@@ -34,15 +37,18 @@ export class TestMedia extends EventTarget {
     this.readyState = 4;
     this.dispatchEvent(new Event('loadedmetadata'));
     this.dispatchEvent(new Event('canplay'));
+    // A play() waiting on data starts once it arrives, as browsers do.
+    if (!this.paused && !this.deferPlay) this.dispatchEvent(new Event('playing'));
   }
   load() {
     this.loads++;
-    if (this.src && this.autoReady) this.ready();
+    if (this.src && this.autoReady && !this.bufferOnPlay) this.ready();
   }
   play() {
     this.plays++;
     if (this.blockPlay) return Promise.reject(new DOMException('Gesture needed', 'NotAllowedError'));
     this.paused = false;
+    if (this.bufferOnPlay && this.readyState < 2) queueMicrotask(() => this.ready());
     if (this.deferPlay) return new Promise(resolve => this.pendingPlays.push(resolve));
     if (this.readyState >= 2) queueMicrotask(() => {
       if (!this.paused) this.dispatchEvent(new Event('playing'));
@@ -56,6 +62,11 @@ export class TestMedia extends EventTarget {
   }
   pause() { this.paused = true; }
   removeAttribute(name) { if (name === 'src') this.src = ''; }
+  // A paused element whose buffer the browser has dropped, as iOS does
+  // under memory pressure: metadata only, and no more data until play().
+  purge() {
+    this.readyState = 1;
+  }
   stall() {
     this.readyState = 1;
     this.dispatchEvent(new Event('waiting'));

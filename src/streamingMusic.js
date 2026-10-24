@@ -123,7 +123,15 @@ export function createStreamingMusic(ctx, destination, sounds, url) {
       return;
     }
     if (!unlocked || held || ctx.state !== 'running' || now < slot.at || slot.blocked) return;
-    if (media.readyState < 2 || media.seeking) return;
+    if (media.seeking) return;
+    // iOS Safari buffers nothing until play() - preload is only a hint, and
+    // a paused element's buffer can be dropped - so a cue still asks to play
+    // while it waits for data. Its envelope stays silent until the playing
+    // event, which resyncs it to the cue clock.
+    if (media.readyState < 2) {
+      if (media.paused) attempt(slot);
+      return;
+    }
     if (slot.resync) {
       slot.resync = false;
       if (Math.abs(media.currentTime - position) > 0.1) {
