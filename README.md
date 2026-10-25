@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open the URL printed by Vite. Press **Start**, then steer with the mouse, touch, or **W/A/S/D**. Hold the mouse button or touch during the opening cinematic to skip to flight.
+Open the URL printed by Vite. Press **Start**, then steer with the mouse, touch, or **W/A/S/D**. Hold the mouse button or touch during the opening cinematic to skip to flight. The title screen's corner button, or **F**, toggles fullscreen where the browser allows it; on iPhone, whose Safari doesn't, Add to Home Screen opens the game without Safari's bars.
 
 ## Build and check
 

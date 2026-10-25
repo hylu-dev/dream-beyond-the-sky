@@ -601,6 +601,40 @@ window.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('keyup', (e) => keys.delete(e.code));
+
+// Fullscreen, from the menu's corner button or F, where the browser allows
+// it: not on an iPhone, whose Safari keeps it for video (there, Add to Home
+// Screen opens the game without Safari's bars), nor when already opened so.
+// On a phone it also turns the screen to landscape where that's allowed.
+const fullscreenEl = document.getElementById('fullscreen');
+const root = document.documentElement;
+const fullscreenNow = () => document.fullscreenElement ?? document.webkitFullscreenElement ?? null;
+const canFullscreen = (document.fullscreenEnabled || document.webkitFullscreenEnabled)
+  && !matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches && !navigator.standalone;
+function toggleFullscreen() {
+  if (!canFullscreen) return;
+  if (fullscreenNow()) {
+    (document.exitFullscreen ?? document.webkitExitFullscreen).call(document);
+    return;
+  }
+  const request = root.requestFullscreen?.({ navigationUI: 'hide' }) ?? root.webkitRequestFullscreen?.();
+  Promise.resolve(request).then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+}
+fullscreenEl.hidden = !canFullscreen;
+fullscreenEl.addEventListener('click', () => {
+  toggleFullscreen();
+  fullscreenEl.blur(); // so Space and Enter go back to Start
+});
+for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
+  document.addEventListener(type, () => {
+    const on = !!fullscreenNow();
+    fullscreenEl.classList.toggle('on', on);
+    fullscreenEl.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Fullscreen');
+  });
+}
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey) toggleFullscreen();
+});
 startEl.addEventListener('click', () => {
   if (state === 'menu') startAwakening();
 });

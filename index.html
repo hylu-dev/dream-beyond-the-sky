@@ -367,6 +367,21 @@
       #menu.booting .title-v, #menu.booting .side, #menu.booting .title-en { opacity: 1; transform: none; filter: none; transition: none; animation: load-in 1.6s ease both; }
       #menu.booting .side { animation-delay: 0.3s; }
       #menu.booting .title-en { animation-delay: 0.5s; }
+      /* Fullscreen, in the menu's top right corner where the browser allows
+         it (main.js hides it elsewhere, as on an iPhone). */
+      #fullscreen {
+        position: absolute; z-index: 1; top: calc(18px + env(safe-area-inset-top)); right: calc(18px + env(safe-area-inset-right));
+        display: flex; align-items: center; gap: 10px; padding: 10px; border: 0; background: none;
+        color: rgba(239, 230, 210, 0.55); cursor: pointer; pointer-events: auto;
+        font: 500 11px/1 'Cormorant Garamond', serif; letter-spacing: 0.3em; text-transform: uppercase;
+        text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); transition: color 0.4s ease, opacity 0.9s ease;
+      }
+      #fullscreen[hidden] { display: none; }
+      #fullscreen svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+      #fullscreen .exit, #fullscreen.on .enter { display: none; }
+      #fullscreen.on .exit { display: inline; }
+      #fullscreen:hover, #fullscreen:focus-visible { color: var(--paper); outline: none; }
+      #menu.booting #fullscreen, #menu.waiting #fullscreen { opacity: 0; pointer-events: none; }
       #menu.booting #start, #menu.booting .foot { opacity: 0; transform: translateY(8px); filter: blur(3px); transition: none; }
       #menu.booting #start { pointer-events: none; }
       #menu.booting #loading { opacity: 1; }
@@ -418,6 +433,13 @@
     <div class="bar bottom"></div>
     <div id="lids" aria-hidden="true"><div class="lid top"></div><div class="lid bottom"></div></div>
     <div id="menu" class="booting" aria-hidden="true">
+      <button id="fullscreen" type="button" hidden aria-label="Fullscreen">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path class="enter" d="M1.5 5.5v-4h4M10.5 1.5h4v4M14.5 10.5v4h-4M5.5 14.5h-4v-4" />
+          <path class="exit" d="M5.5 1.5v4h-4M14.5 5.5h-4v-4M10.5 14.5v-4h4M1.5 10.5h4v4" />
+        </svg>
+        <span class="enter">Fullscreen</span><span class="exit">Exit fullscreen</span>
+      </button>
       <div class="panel">
         <h1 class="title-v" lang="zh-Hans">梦越苍穹</h1>
         <div class="side">
