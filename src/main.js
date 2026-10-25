@@ -630,6 +630,7 @@ for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
     const on = !!fullscreenNow();
     fullscreenEl.classList.toggle('on', on);
     fullscreenEl.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Fullscreen');
+    fullscreenEl.title = on ? 'Exit fullscreen (F)' : 'Fullscreen (F)';
   });
 }
 window.addEventListener('keydown', (e) => {
