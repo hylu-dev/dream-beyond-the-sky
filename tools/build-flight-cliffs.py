@@ -14,6 +14,9 @@ from mathutils.geometry import barycentric_transform
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'public/assets/flight/cliffs'
+# Painted texture sources and the portable GLBs; the game loads cliffs.mesh.json
+# from OUT and WebP copies of the textures (tools/build-cliff-textures.py).
+ART = ROOT / 'art/flight-cliffs'
 SOURCE = ROOT / 'art/flight-cliffs'
 OUT.mkdir(parents=True, exist_ok=True)
 SOURCE.mkdir(parents=True, exist_ok=True)
@@ -30,7 +33,7 @@ def material(name, texture_name=None, alpha=False):
     col=n.new('ShaderNodeVertexColor'); col.layer_name='PaintedLight'
     if texture_name:
         tex=n.new('ShaderNodeTexImage')
-        tex.image=bpy.data.images.load(str(OUT/texture_name)); tex.image.pack()
+        tex.image=bpy.data.images.load(str(ART/texture_name)); tex.image.pack()
         mix=n.new('ShaderNodeMixRGB'); mix.blend_type='MULTIPLY'; mix.inputs[0].default_value=1
         links.new(tex.outputs['Color'],mix.inputs[1]); links.new(col.outputs['Color'],mix.inputs[2])
         # Direct color exports KHR_materials_unlit. Alpha is also retained.
@@ -57,9 +60,9 @@ def terrain_material():
     n=m.node_tree.nodes; n.clear(); links=m.node_tree.links
     out=n.new('ShaderNodeOutputMaterial'); vertex=n.new('ShaderNodeVertexColor'); vertex.layer_name='PaintedLight'
     uv=n.new('ShaderNodeUVMap'); uv.uv_map='Continuous geological projection'
-    rock=n.new('ShaderNodeTexImage'); rock.image=bpy.data.images.load(str(OUT/'painted-stone.png')); rock.image.pack()
+    rock=n.new('ShaderNodeTexImage'); rock.image=bpy.data.images.load(str(ART/'painted-stone.png')); rock.image.pack()
     links.new(uv.outputs[0],rock.inputs['Vector'])
-    grass=n.new('ShaderNodeTexImage'); grass.image=bpy.data.images.load(str(OUT/'painted-grass.png')); grass.image.pack()
+    grass=n.new('ShaderNodeTexImage'); grass.image=bpy.data.images.load(str(ART/'painted-grass.png')); grass.image.pack()
     mapping=n.new('ShaderNodeVectorMath'); mapping.operation='SCALE'; mapping.inputs[3].default_value=2.4
     # The existing face projection includes vertical coordinates on walls.
     # Top-only projection would smear the grass down the vertical rim.
@@ -491,7 +494,7 @@ def export_portable(slug,objects,terrain_objects):
     bpy.ops.object.select_all(action='DESELECT')
     for obj in objects: obj.select_set(True)
     bpy.context.view_layer.objects.active=objects[0]
-    bpy.ops.export_scene.gltf(filepath=str(OUT/f'{slug}.glb'),export_format='GLB',use_selection=True,
+    bpy.ops.export_scene.gltf(filepath=str(ART/f'{slug}.glb'),export_format='GLB',use_selection=True,
                               export_vertex_color='NAME',export_vertex_color_name='PaintedLight')
     for obj,original_uv,colors,portable in restore:
         obj.data.materials[0]=TERRAIN
@@ -576,7 +579,7 @@ for index,(slug,title,rx,ry,h,seed) in enumerate(VARIANTS):
     for obj in objects: obj.location.x+=(index-1.5)*43
 
 with open(OUT/'cliffs.mesh.json','w') as f:
-    json.dump(dict(version=4,source='Blender',texture='painted-stone.png',grassTexture='painted-grass.png',foliageTexture='painted-foliage.png',ivyTexture='painted-ivy.png',variants=variants),f,separators=(',',':'))
+    json.dump(dict(version=4,source='Blender',texture='painted-stone.webp',grassTexture='painted-grass.webp',foliageTexture='painted-foliage.webp',ivyTexture='painted-ivy.webp',variants=variants),f,separators=(',',':'))
 scene=bpy.context.scene
 scene.world.color=(.32,.34,.39)
 camera_data=bpy.data.cameras.new('Asset review camera');camera=bpy.data.objects.new('Asset review camera',camera_data)

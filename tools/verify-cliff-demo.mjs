@@ -29,7 +29,7 @@ options.componentSystems = [RenderComponentSystem, CameraComponentSystem];
 app.init(options);
 const device = app.graphicsDevice;
 const data = JSON.parse(await readFile(new URL('../public/assets/flight/cliffs/cliffs.mesh.json', import.meta.url)));
-const ivyPng = await readFile(new URL('../public/assets/flight/cliffs/painted-ivy.png', import.meta.url));
+const ivyPng = await readFile(new URL('../art/flight-cliffs/painted-ivy.png', import.meta.url));
 const ivyAspect = ivyPng.readUInt32BE(16) / ivyPng.readUInt32BE(20);
 assert.ok(ivyAspect < .4, 'dedicated ivy is a tall texture');
 assert.equal(data.source, 'Blender');
@@ -105,7 +105,7 @@ for (const variant of data.variants) {
   const colorMat=createCliffMaterial(device,null);
   entity.addComponent('render', { meshInstances: parts.map((part,i)=>new MeshInstance(createCliffMesh(device,part),[terrainMat,mat,colorMat,foliageMat,foliageMat,terrainMat][i])) });
   app.root.addChild(entity);
-  const glb = await readFile(new URL(`../public/assets/flight/cliffs/${variant.id}.glb`, import.meta.url));
+  const glb = await readFile(new URL(`../art/flight-cliffs/${variant.id}.glb`, import.meta.url));
   const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)));
   for(const material of gltf.materials) assert.ok(material.extensions.KHR_materials_unlit);
   assert.ok(gltf.materials.filter(m=>m.pbrMetallicRoughness.baseColorTexture).length>=4, 'portable terrain includes baked grass/stone blend');

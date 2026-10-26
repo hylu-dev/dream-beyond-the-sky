@@ -34,10 +34,10 @@ This is palette/direction calibration, not a recovered physical lighting solutio
 - Editable Blender source with packed textures: `art/flight-cliffs/painted-cliffs.blend`
 - Four-variant render: `art/flight-cliffs/blender-assets-preview.png`
 - Individual renders: `art/flight-cliffs/{tall-spire,chunk,arch,slab}-model-preview.png`
-- Portable GLBs: `public/assets/flight/cliffs/{tall-spire,chunk,arch,slab}.glb`
+- Portable GLBs: `art/flight-cliffs/{tall-spire,chunk,arch,slab}.glb` (not deployed)
 - Direct mesh export: `public/assets/flight/cliffs/cliffs.mesh.json`
-- New meadow: `public/assets/flight/cliffs/painted-grass.png`
-- Existing textures: `painted-stone.png`, `painted-foliage.png`, `painted-ivy.png` in the same folder.
+- New meadow: `art/flight-cliffs/painted-grass.png`, shipped as `public/assets/flight/cliffs/painted-grass.webp` (`tools/build-cliff-textures.py`)
+- Existing textures: `painted-stone.png`, `painted-foliage.png`, `painted-ivy.png` in `art/flight-cliffs/`, shipped as WebP beside the mesh export.
 - Superseded study builders/renders and the old `crown-wall`, `high-buttress` and `stepped-ledge` GLBs were removed during repository cleanup. They remain recoverable from Git history.
 
 Rebuild assets:
@@ -54,7 +54,7 @@ The isolated `cliff-demo.html` production build passes, with Vite's existing eng
 
 ## Meadow generation
 
-Created using the built-in image-generation tool; final saved file: `public/assets/flight/cliffs/painted-grass.png`. Final prompt:
+Created using the built-in image-generation tool; final saved file: `art/flight-cliffs/painted-grass.png`. Final prompt:
 
 > Production seamless game surface texture, square 1536x1536. Straight overhead orthographic flat albedo of short meadow grass and moss on an ancient floating limestone plateau. Completely fill the image; no object silhouette or background. Sophisticated painterly gouache / matte painting style: broad quiet dry brush strokes, soft varied mats of muted sage and dusty olive grass, subtle dry straw flecks and small patches of faded taupe earth. Very low contrast, restrained grayish greens, no neon or saturation. About 80 percent grass and moss, 20 percent soft bare-earth wear, organically interwoven. Small scattered pale limestone chips are acceptable but no large stones or geological cliff bands. No trees, leaves on stems, shrubs, individual tall blades, flowers, clouds, mist, text, directional cast shadows, highlights or lighting gradient. Diffuse even illumination so it can be shaded in-game. Scale is a roughly 10 metre patch, no close-up macro vegetation. Fine painted surface texture within large simple restful color shapes. Seamless at all four boundaries. This texture will blend into a separate pale lavender-gray painted limestone texture on floating cliff rims under cool lavender cloud fill and warm cream sunlight.
 
@@ -67,6 +67,6 @@ The existing approved painted limestone texture is reused. The final foliage atl
 
 ## Dedicated ivy generation
 
-Generated with the built-in image generation tool, using the user's cropped leaf close-up as a style reference. Saved as `public/assets/flight/cliffs/painted-ivy.png`; transparency is preserved. Final prompt:
+Generated with the built-in image generation tool, using the user's cropped leaf close-up as a style reference. Saved as `art/flight-cliffs/painted-ivy.png` (shipped as WebP); transparency is preserved. Final prompt:
 
 > Create a NEW production game texture of hanging ivy on genuinely transparent background. Use the supplied image only as reference for the leaf shapes and painted style. Tall portrait canvas with exact width to height ratio 1:3 (for example 1024x3072). A SINGLE complete hanging vine cluster: three thin descending sinuous stems, attached near the upper edge with a small gathering of leaves, hanging downward under gravity. One long main stem reaches almost the bottom, two side stems reach roughly 70% and 85% down. Flat elongated pointed olive-green leaves alternating along stems, each clear simple painted shape, about 14 to 20 leaves per main stem, varying sizes and angles. Loose asymmetrical spacing, transparent gaps showing between leaves and stems. Palette from reference: subdued moss olive shadows, dusty warm yellow-green sunlit leaf faces, muted sage mids; broad soft painterly color facets, almost flat 2D look. Leaves should be distinct simple silhouettes not needles or bushy clumps. Full cluster visible with 8 percent transparent margin all sides, no cropped stems or leaf tips. TOP to BOTTOM orientation. No rocks, ground, tree trunk, tree canopy, shrubs, clouds, background color, border, labels, text, cast shadows or scenery. Do not copy the reference's rectangular stone backdrop. This is an isolated foliage texture that will be mapped onto one long simple quad; avoid dense massing.

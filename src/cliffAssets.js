@@ -66,7 +66,7 @@ export async function loadCliffAssets(scene) {
     const asset = new Asset(filename, 'texture', { url: `${CLIFF_ASSET_ROOT}${filename}` });
     asset.ready(() => {
       asset.resource.anisotropy = Math.min(4, scene.app.graphicsDevice.maxAnisotropy);
-      if (filename === 'painted-grass.png') {
+      if (filename === 'painted-grass.webp') {
         asset.resource.addressU = asset.resource.addressV = ADDRESS_REPEAT;
       }
       resolve(asset.resource);
@@ -76,10 +76,11 @@ export async function loadCliffAssets(scene) {
     scene.app.assets.load(asset);
   });
   const [texture, foliageTexture, ivyTexture, grassTexture, data] = await Promise.all([
-    loadTexture('painted-stone.png'),
-    loadTexture('painted-foliage.png'),
-    loadTexture('painted-ivy.png'),
-    loadTexture('painted-grass.png'),
+    // WebP copies of the PNGs in art/flight-cliffs (tools/build-cliff-textures.py).
+    loadTexture('painted-stone.webp'),
+    loadTexture('painted-foliage.webp'),
+    loadTexture('painted-ivy.webp'),
+    loadTexture('painted-grass.webp'),
     fetch(`${CLIFF_ASSET_ROOT}cliffs.mesh.json`).then(response => {
       if (!response.ok) throw new Error(`Cliff geometry: HTTP ${response.status}`);
       return response.json();

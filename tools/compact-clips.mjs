@@ -1,7 +1,10 @@
 // Shrink animation clips for shipping: drop everything the engine's clip
-// decoder never reads (meshes, materials, skin bind matrices), and store
-// float rotations as normalized 16-bit, as the other shipped clips already
-// do. Translations stay float. Each clip is decoded before and after with
+// decoder never reads (meshes, materials, skin bind matrices), store float
+// rotations as normalized 16-bit, as the other shipped clips already do, and
+// keep a channel that never changes as one keyframe instead of one a frame
+// (the decoder samples each channel on its own times). Translations stay
+// float. All channels share one buffer view, and the JSON keeps only what the
+// decoder reads and glTF requires (min/max on the time inputs). Each clip is decoded before and after with
 // the engine's own parser, and the result is only written if every bone
 // stays within tolerance on every frame.
 // node tools/compact-clips.mjs public/assets/anims/wake.glb [...]
@@ -13,6 +16,9 @@ const DIMS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
 const BYTES = { [FLOAT]: 4, [SHORT]: 2, 5121: 1, 5123: 2, 5125: 4, 5120: 1 };
 // Worst allowed per-component change after decoding: 16-bit steps are 3e-5.
 const TOLERANCE = 1e-4;
+// A channel whose every component stays within this of its first key is kept
+// as that one key.
+const CONSTANT = 1e-5;
 
 function readGlb(file) {
   const b = fs.readFileSync(file);
@@ -41,12 +47,13 @@ function compact(file) {
   const animation = json.animations[0];
   const chunks = [];
   let length = 0;
-  const views = [], accessors = [], remap = new Map();
-  function addAccessor(index, quantize) {
-    const key = `${index}:${quantize}`;
+  const accessors = [], remap = new Map();
+  function addAccessor(index, quantize, firstOnly = false, input = false) {
+    const key = `${index}:${quantize}:${firstOnly}:${input}`;
     if (remap.has(key)) return remap.get(key);
     const a = json.accessors[index];
-    const values = accessorFloats(json, bin, index);
+    const count = firstOnly ? 1 : a.count;
+    const values = accessorFloats(json, bin, index).subarray(0, count * DIMS[a.type]);
     let data;
     if (quantize) {
       data = Buffer.alloc(values.length * 2);
@@ -56,21 +63,31 @@ function compact(file) {
     }
     const pad = (4 - (length % 4)) % 4;
     if (pad) { chunks.push(Buffer.alloc(pad)); length += pad; }
-    views.push({ buffer: 0, byteOffset: length, byteLength: data.length });
+    const out = { bufferView: 0, byteOffset: length, componentType: quantize ? SHORT : FLOAT, count, type: a.type };
     chunks.push(data);
     length += data.length;
-    const out = { bufferView: views.length - 1, componentType: quantize ? SHORT : FLOAT, count: a.count, type: a.type };
     if (quantize) out.normalized = true;
-    if (a.min && !quantize) out.min = a.min;
-    if (a.max && !quantize) out.max = a.max;
+    if (input) {
+      out.min = [values[0]];
+      out.max = [values[values.length - 1]];
+    }
     accessors.push(out);
     remap.set(key, accessors.length - 1);
     return accessors.length - 1;
   }
+  const constant = (index) => {
+    const a = json.accessors[index], dim = DIMS[a.type];
+    const values = accessorFloats(json, bin, index);
+    for (let i = dim; i < values.length; i++) if (Math.abs(values[i] - values[i % dim]) > CONSTANT) return false;
+    return true;
+  };
   const samplers = animation.samplers.map((s, i) => {
     const channel = animation.channels.find(c => c.sampler === i);
     const rotation = channel?.target.path === 'rotation';
-    return { ...s, input: addAccessor(s.input, false), output: addAccessor(s.output, rotation) };
+    const still = (s.interpolation ?? 'LINEAR') !== 'CUBICSPLINE' && json.accessors[s.output].count > 1 && constant(s.output);
+    const sampler = { input: addAccessor(s.input, false, still, true), output: addAccessor(s.output, rotation, still) };
+    if (s.interpolation && s.interpolation !== 'LINEAR') sampler.interpolation = s.interpolation;
+    return sampler;
   });
   const nodes = json.nodes.map(({ mesh, ...node }) => node);
   const skins = (json.skins || []).map(({ inverseBindMatrices, ...skin }) => skin);
@@ -82,7 +99,7 @@ function compact(file) {
     ...(skins.length && { skins }),
     animations: [{ ...animation, samplers }],
     accessors,
-    bufferViews: views,
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: length }],
     buffers: [{ byteLength: length }],
   };
   return writeGlb(out, Buffer.concat(chunks, length));

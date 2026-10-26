@@ -34,20 +34,20 @@ The output is unchanged: the tints written are the same values, just not rewritt
 
 ## Memory and loading
 
-The title screen waits only for what the menu and the opening play: the island realm, the character, the `idle`, `doze`, `wake`, `getup-sunrise` and `vanish` clips, and the two path files (about 24 MiB). Once those are in, the flight's assets load behind the menu and the opening: the sky realm, the cliff set, and the `step-off`, `flail`, `impact`, `limpfall`, `breathe` and `sigh` clips (about 33 MiB). She stands still at the brink until they are in, and a full hold-to-skip ring waits for them too. If either wait passes 1.5 s, their own progress bar (`#flight-loading`) fades in at the bottom right, in place of the skip prompt. `?fly=1` waits for them before starting. A failed load in either group shows the `#failed` sheet with a reload button; so does a lost graphics device (an iPhone can reclaim it after a switch to another app), since the splats are not restored with it. Audio loads alongside without blocking.
+The title screen waits only for what the menu and the opening play: the island realm, the character, the `idle`, `doze`, `wake`, `getup-sunrise` and `vanish` clips, and the two path files (about 22 MiB). Once those are in, the flight's assets load behind the menu and the opening: the sky realm, the cliff set, and the `step-off`, `flail`, `impact`, `limpfall`, `breathe` and `sigh` clips (about 25 MiB). She stands still at the brink until they are in, and a full hold-to-skip ring waits for them too. If either wait passes 1.5 s, their own progress bar (`#flight-loading`) fades in at the bottom right, in place of the skip prompt. `?fly=1` waits for them before starting. A failed load in either group shows the `#failed` sheet with a reload button; so does a lost graphics device (an iPhone can reclaim it after a switch to another app), since the splats are not restored with it. Audio loads alongside without blocking.
 
 | Fetched at startup | Download | Resident afterwards |
 | --- | ---: | --- |
 | Island realm (`.spz`) | 16.3 MiB | ~32 MiB GPU textures + 12 MiB CPU sort centers (estimated from formats) |
 | Sky realm (`.spz`) | 16.0 MiB | the same, held through the whole island sequence |
-| Animation clips (11 `.glb`) | 13.8 MiB | parsed into keyframe tracks |
-| Cliff textures and mesh | 9.5 MiB | 32 MiB GPU (four 1254² RGBA textures with mips) |
+| Animation clips (11 `.glb`) | 10.3 MiB | parsed into keyframe tracks |
+| Cliff textures (WebP) and mesh | 3.0 MiB | 32 MiB GPU (four 1254² RGBA textures with mips) |
 | Character (`.vsplat`) | 1.2 MiB | small |
 | Decoded sounds (`.mp3`) | 6.2 MiB | **~132 MiB** PCM at 48 kHz (360.6 s of stereo float32) |
 | Streamed music (`.mp3`) | 4.3 MiB | browser media buffers only |
-| **Total** | **67.2 MiB** | |
+| **Total** | **57.2 MiB** | |
 
-The decoded-sound figure is exact arithmetic from the files' durations. The splat figures follow from PlayCanvas's texture formats and still need confirming in a browser. Repository cleanup removed the three superseded cliff GLBs, inactive stone/cloud textures and favicon option galleries from `public/`, saving about 29 MiB per deployment. The four current `flight/cliffs/*.glb` models remain for asset export and validation (`tools/build-flight-cliffs.py` and `tools/verify-cliff-demo.mjs`); runtime cliffs use `cliffs.mesh.json`. The island atlas remains referenced by `src/flightScenery.js`.
+The decoded-sound figure is exact arithmetic from the files' durations. The splat figures follow from PlayCanvas's texture formats and still need confirming in a browser. Repository cleanup removed the three superseded cliff GLBs, inactive stone/cloud textures and favicon option galleries from `public/`, saving about 29 MiB per deployment. The four current cliff GLBs and the cliff textures' PNG sources live in `art/flight-cliffs/`, out of the deployment (about 31 MiB), for asset export and validation (`tools/build-flight-cliffs.py` and `tools/verify-cliff-demo.mjs`); runtime cliffs use `cliffs.mesh.json` and WebP copies of the textures. `python3 tools/build-cliff-textures.py` re-encodes them at quality 90 (1.4 MiB against 7.9 MiB of PNG), checking a mean colour error under 3/255 (it is at most 2.3) and pixel-identical foliage and ivy cutouts. The island atlas remains referenced by `src/flightScenery.js`.
 
 ## Checks
 
@@ -69,7 +69,7 @@ The first draw of the sky realm (its work buffer for 1,048,576 splats) and of th
 
 ## Clip size
 
-`node tools/compact-clips.mjs public/assets/anims/*.glb` drops what the engine's clip decoder never reads (meshes, materials, skin bind matrices) and stores float rotations as normalized 16-bit; translations stay float. It decodes each clip with `Animation.fromGlb` before and after and writes only if every keyframe value moves by at most 1e-4 (16-bit steps are 3e-5). Run it on any newly exported clip. It took `doze`, `wake`, `vanish`, `getup-sunrise` and `step-off` from 18.3 MB to 6.7 MB (worst change 2e-5); the other clips were already compact.
+`node tools/compact-clips.mjs public/assets/anims/*.glb` drops what the engine's clip decoder never reads (meshes, materials, skin bind matrices) stores float rotations as normalized 16-bit, keeps a channel that never changes (within 1e-5) as a single keyframe, and shares one buffer view across channels; translations stay float. It decodes each clip with `Animation.fromGlb` before and after and writes only if every keyframe value moves by at most 1e-4 (16-bit steps are 3e-5). Run it on any newly exported clip. It took the eleven clips from 25 MB to 10.8 MB (worst change 2e-5); the title screen's five from 19 MB to 5 MB.
 
 ## Music memory
 
