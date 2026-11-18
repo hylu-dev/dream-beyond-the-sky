@@ -332,7 +332,10 @@ const WAKE_UP = {
   // frame behind, so it goes `lead` frames on at its own pace. Across, the
   // camera keeps to the slow average of her head, `steady` per second. It is
   // held `handheld` as unsteadily as the portrait.
-  close: { metres: 1.9, side: 0.12, up: -0.02, fov: 8, steady: 0.6, lead: 1, handheld: 0.4 },
+  // The height follows hers on a spring, `rise` per second, stiff enough to
+  // keep her face level but not to jolt up with her as she straightens.
+  close: { metres: 1.9, side: 0.12, up: -0.02, fov: 8, steady: 0.6, lead: 1, handheld: 0.4, rise: 12 },
+  follow: 5, // per second: the spring the later shots follow her face on (as PORTRAIT.lookRate's lag)
   faceHeight: 1.4, // over her feet, as the clip starts
   backOut: { from: 0.3, seconds: 4.9, metres: 1.1, rise: 0.06, fov: 12 },
   wideAt: 5.2, // seconds in, cut to high and far
@@ -1802,6 +1805,25 @@ let wakeSnap = 0; // frames left to put the look straight on her face
 const faceSteady = new Vec3(); // her face, slowly averaged
 let faceY = 0; // her face's height, held
 let faceLastY = 0; // as her bones last left it
+let faceYVel = 0; // how fast the held height is moving
+
+// A critically damped spring from `x` (moving at `v`) toward `to`, `omega` per
+// second: [where it is, how fast] after `dt`. Unlike an exponential chase, its
+// speed never jumps when what it follows starts or stops moving.
+function spring(x, v, to, omega, dt) {
+  const off = x - to, e = Math.exp(-omega * dt), k = (v + omega * off) * dt;
+  return [to + (off + k) * e, (v - omega * k) * e];
+}
+
+// Following her face once she wakes: the same lag as followFace, on a
+// spring, so the shot never lurches as her head starts, or stops, moving -
+// and kept up through the wide shot, so the shot after it doesn't open
+// with the look swinging over to catch up with her.
+const faceVel = new Vec3();
+function springFace(dt) {
+  facePoint(lookGoal);
+  for (const k of ['x', 'y', 'z']) [faceLook[k], faceVel[k]] = spring(faceLook[k], faceVel[k], lookGoal[k], WAKE_UP.follow, dt);
+}
 let sighed = false;
 let dozing = false;
 let menuBack = false;
@@ -1890,9 +1912,10 @@ function updateWoken(dt) {
       faceLook.copy(lookGoal);
       faceSteady.copy(lookGoal);
       faceY = faceLastY = lookGoal.y;
+      faceYVel = 0;
     } else {
       followFace(dt);
-      faceY = lookGoal.y + (lookGoal.y - faceLastY) * c.lead;
+      [faceY, faceYVel] = spring(faceY, faceYVel, lookGoal.y + (lookGoal.y - faceLastY) * c.lead, c.rise, dt);
       faceLastY = lookGoal.y;
     }
   }
@@ -1916,6 +1939,7 @@ function updateWoken(dt) {
 function updateWokenWide(dt) {
   const w = WAKE_UP.wide;
   wokeTime += dt;
+  springFace(dt); // not looked at here: kept up for the shot after
   const u = smoother(Math.min((wokeTime - WAKE_UP.wideAt) / (WAKE_UP.endAt - WAKE_UP.wideAt), 1));
   camPos.copy(faceDir).mulScalar(w.ahead - w.drift * u).add(seat).add(tmpVec.copy(wakeSide).mulScalar(w.side));
   camPos.y = seat.y + w.height;
@@ -1933,7 +1957,7 @@ const endPos = new Vec3(); // the shot's own pose, before the breathing
 function updateWokenEnd(dt) {
   const e = WAKE_UP.end;
   wokeTime += dt;
-  followFace(dt);
+  springFace(dt);
   const push = smoother(Math.min((wokeTime - WAKE_UP.endAt) / (WAKE_UP.home.at - WAKE_UP.endAt), 1)) * e.push;
   endPos.copy(faceDir).mulScalar(e.ahead - push).add(seat).add(tmpVec.copy(wakeSide).mulScalar(e.side));
   endPos.y = seat.y + e.height;
@@ -1990,7 +2014,7 @@ function updateHomeward(dt) {
   wokeTime += dt;
   menuTime += dt;
   settle();
-  followFace(dt);
+  springFace(dt);
   const m = menuPose();
   const to = around(menuCam);
   // Along a curve from the side shot, bent out toward `via`, into the menu's.
